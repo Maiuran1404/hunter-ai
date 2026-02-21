@@ -9,14 +9,17 @@ const anthropic = new Anthropic();
 
 async function draftReplyWithAI(originalBody: string, replyBody: string, vendor: string): Promise<string> {
   if (isDemoMode() || !process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY.includes('placeholder')) {
-    return `Thank you for getting back to us, ${vendor} team! We'd love to proceed with the startup program. Could you share the next steps? We're happy to provide any additional information needed.\n\nBest regards`;
+    const founderName = state.profile?.founder_name || 'The Team';
+    return `Thank you for getting back to us, ${vendor} team! We'd love to proceed with the startup program. Could you share the next steps? We're happy to provide any additional information needed.\n\nBest regards,\n${founderName}`;
   }
   const msg = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001', max_tokens: 300,
     messages: [{ role: 'user', content: `You're replying to a vendor (${vendor}) about a startup credits program.
+Company: ${state.profile?.name || 'our startup'}
+Founder: ${state.profile?.founder_name || 'the team'}
 Original email: ${originalBody.slice(0, 300)}
 Their reply: ${replyBody.slice(0, 500)}
-Write a warm, professional response under 150 words. Be grateful, express interest, ask about next steps. Return ONLY the reply body.` }],
+Write a warm, professional response under 150 words. Be grateful, express interest, ask about next steps. Sign off with "${state.profile?.founder_name || 'The Team'}". NEVER use placeholders like [Your name]. Return ONLY the reply body.` }],
   });
   return msg.content[0].type === 'text' ? msg.content[0].text : '';
 }

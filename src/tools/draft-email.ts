@@ -32,11 +32,14 @@ export async function draftEmailTool(input: {
     model: 'claude-haiku-4-5-20251001', max_tokens: 500,
     messages: [{ role: 'user', content: `Write a concise startup program application email.
 Company: ${profile.name}, ${profile.stage}, ${profile.team_size} people
+Founder: ${profile.founder_name || 'the team'}
+Contact email: ${profile.contact_email || ''}
 Incubators: ${(profile.incubators ?? []).join(', ') || 'none'}
 ARR: $${profile.monthly_arr * 12}/yr
 Program: ${opp.program.name} (${opp.program.vendor})
 Reasoning: ${opp.reasoning}
-Return ONLY the email body (no subject line). Under 120 words. Warm, professional.` }]
+Return ONLY the email body (no subject line). Under 120 words. Warm, professional.
+Sign off with the founder's actual name "${profile.founder_name || profile.name}". NEVER use placeholders like [Your name], [Your Product], [Company], etc. — always use the real values provided above.` }]
   });
 
   const body = msg.content[0].type === 'text' ? msg.content[0].text : '';

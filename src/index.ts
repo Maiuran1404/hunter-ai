@@ -143,7 +143,7 @@ server.tool(
 server.tool(
   {
     name: "send_email",
-    description: "Send an application email via Gmail to a startup program contact",
+    description: "Send an application email from the user's connected Gmail account to a startup program contact. Requires Gmail OAuth connection first.",
     schema: sendEmailSchema,
     annotations: { openWorldHint: true },
   },
