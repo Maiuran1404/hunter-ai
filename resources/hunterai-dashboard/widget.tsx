@@ -19,6 +19,8 @@ interface WidgetState {
   subscriptions: Subscription[];
   profile: CompanyProfile | null;
   total_potential_value: number;
+  gmail_connected: boolean;
+  gmail_auth_url: string | null;
 }
 
 interface LocalState {
@@ -26,10 +28,11 @@ interface LocalState {
   applyingId: string | null;
   showAllOpps: boolean;
   expandedReply: string | null;
-  activeView: 'opportunities' | 'applied' | 'replies';
+  activeView: 'opportunities' | 'applied' | 'replies' | 'subscriptions';
   draftEmail: (EmailDraft & { opportunity: Opportunity }) | null;
   sendingEmail: boolean;
   showOppList: boolean;
+  gmailPolling: boolean;
 }
 
 // ─── Palette ──────────────────────────────────────────────
@@ -58,6 +61,15 @@ function makePalette(isDark: boolean) {
 }
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Inter", "SF Pro Display", system-ui, sans-serif';
+
+// ─── Category colors ────────────────────────────────────
+const CATEGORY_COLORS: Record<string, string> = {
+  infrastructure: '#3b82f6',
+  productivity: '#8b5cf6',
+  design: '#ec4899',
+  analytics: '#f59e0b',
+  other: '#6b7280',
+};
 
 // ─── Utilities ───────────────────────────────────────────
 function fmtCurrency(v: number, cur?: string) {
@@ -88,6 +100,7 @@ function HunterAIDashboardInner() {
   const [local, setLocal] = useState<LocalState>({
     loading: false, applyingId: null, showAllOpps: false, expandedReply: null,
     activeView: 'opportunities', draftEmail: null, sendingEmail: false, showOppList: false,
+    gmailPolling: false,
   });
 
   const isDark = useMemo(() => {
@@ -106,6 +119,11 @@ function HunterAIDashboardInner() {
   const mediumOpps = opps.filter(o => o.effort === 'medium');
   const hardOpps = opps.filter(o => o.effort === 'high');
 
+  // Spend context
+  const totalMonthlySpend = subs.reduce((s, x) => s + x.monthly_cost, 0);
+  const directMatchOpps = opps.filter(o => o.matched_subscription);
+  const directMatchValue = directMatchOpps.reduce((s, o) => s + o.potential_value, 0);
+
   // Has the user done anything yet?
   const hasData = opps.length > 0 || subs.length > 0;
 
@@ -122,6 +140,8 @@ function HunterAIDashboardInner() {
         total_potential_value: d.total_potential_value ?? p?.total_potential_value ?? 0,
         subscriptions: d.subscriptions ?? p?.subscriptions ?? [],
         profile: d.profile ?? p?.profile ?? null,
+        gmail_connected: d.gmail_connected ?? p?.gmail_connected ?? false,
+        gmail_auth_url: d.gmail_auth_url ?? p?.gmail_auth_url ?? null,
       }));
     } catch {}
     setLocal(l => ({ ...l, loading: false }));
@@ -167,9 +187,16 @@ function HunterAIDashboardInner() {
     }
   }, [callTool, sendFollowUpMessage]);
 
+  const gmailConnected = mcpState?.gmail_connected ?? false;
+  const gmailAuthUrl = mcpState?.gmail_auth_url ?? null;
+
   const handleSendDraft = useCallback(async () => {
     const draft = local.draftEmail;
     if (!draft) return;
+    if (!gmailConnected) {
+      handleConnectGmail();
+      return;
+    }
     setLocal(l => ({ ...l, sendingEmail: true }));
     try {
       const r = await callTool('send_email', {
@@ -181,11 +208,17 @@ function HunterAIDashboardInner() {
       }
       setLocal(l => ({ ...l, draftEmail: null, sendingEmail: false }));
       await sendFollowUpMessage(`Email sent to ${draft.to} for ${draft.opportunity.program.name}! Ready to apply to the next one?`);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       setLocal(l => ({ ...l, sendingEmail: false }));
-      await sendFollowUpMessage('Could not send email. Make sure Gmail is connected at /auth/gmail');
+      if (msg.toLowerCase().includes('gmail not connected')) {
+        await setMcpState(p => ({ ...(p ?? {} as WidgetState), gmail_connected: false }));
+        handleConnectGmail();
+      } else {
+        await sendFollowUpMessage(`Could not send email: ${msg}`);
+      }
     }
-  }, [local.draftEmail, callTool, setMcpState, sendFollowUpMessage]);
+  }, [local.draftEmail, gmailConnected, callTool, setMcpState, sendFollowUpMessage, handleConnectGmail]);
 
   const handleCheckReplies = useCallback(async () => {
     setLocal(l => ({ ...l, loading: true }));
@@ -204,6 +237,35 @@ function HunterAIDashboardInner() {
     await callTool('send_reply', { email_id: id });
     await sendFollowUpMessage('Sent reply. Check for more or move to next application?');
   }, [callTool, sendFollowUpMessage]);
+
+  const handleConnectGmail = useCallback(() => {
+    setLocal(l => ({ ...l, gmailPolling: true }));
+  }, []);
+
+  // Poll for Gmail connection after user clicks connect
+  useEffect(() => {
+    if (!local.gmailPolling) return;
+    const startTime = Date.now();
+    const maxDuration = 5 * 60 * 1000; // 5 minutes
+    const interval = setInterval(async () => {
+      if (Date.now() - startTime > maxDuration) {
+        setLocal(l => ({ ...l, gmailPolling: false }));
+        clearInterval(interval);
+        return;
+      }
+      try {
+        const r = await callTool('get_gmail_status', {});
+        const status = r.structuredContent as { connected: boolean; auth_url: string | null } | undefined;
+        if (status?.connected) {
+          clearInterval(interval);
+          setLocal(l => ({ ...l, gmailPolling: false }));
+          await setMcpState(p => ({ ...(p ?? {} as WidgetState), gmail_connected: true, gmail_auth_url: null }));
+          await sendFollowUpMessage('Gmail connected successfully! You can now send application emails.');
+        }
+      } catch { /* ignore polling errors */ }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [local.gmailPolling, callTool, setMcpState, sendFollowUpMessage]);
 
   useEffect(() => { handleRefresh(); }, [handleRefresh]);
 
@@ -278,18 +340,175 @@ function HunterAIDashboardInner() {
   );
 
   // ═══════════════════════════════════════════════════════
+  // EXPENSE BREAKDOWN — Subs found, no opportunities yet
+  // ═══════════════════════════════════════════════════════
+  if (subs.length > 0 && opps.length === 0) {
+    const totalMonthly = subs.reduce((s, sub) => s + sub.monthly_cost, 0);
+    const sorted = [...subs].sort((a, b) => b.monthly_cost - a.monthly_cost);
+    const maxCost = sorted[0]?.monthly_cost ?? 1;
+
+    // Aggregate by category
+    const catTotals: Record<string, number> = {};
+    for (const sub of subs) {
+      catTotals[sub.category] = (catTotals[sub.category] ?? 0) + sub.monthly_cost;
+    }
+    const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+
+    // Donut chart math (SVG circle with stroke-dasharray)
+    const radius = 60;
+    const circumference = 2 * Math.PI * radius;
+    let cumOffset = 0;
+    const segments = catEntries.map(([cat, amount]) => {
+      const pct = totalMonthly > 0 ? amount / totalMonthly : 0;
+      const dash = pct * circumference;
+      const offset = cumOffset;
+      cumOffset += dash;
+      return { cat, amount, pct, dash, offset, color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.other };
+    });
+
+    return (
+      <div style={{ fontFamily: FONT, maxWidth: 520, margin: '0 auto', padding: '28px 24px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.primary, letterSpacing: '-0.02em' }}>HunterAI</div>
+            <div style={{ fontSize: 12, color: C.tertiary, marginTop: 2 }}>Expense breakdown</div>
+          </div>
+          <button onClick={handleRefresh} disabled={local.loading} style={{
+            background: 'none', border: 'none', padding: '4px 6px', cursor: 'pointer', fontSize: 14,
+            color: C.tertiary, opacity: local.loading ? 0.4 : 0.7, lineHeight: 1,
+          }}>
+            {local.loading ? '\u23f3' : '\u21bb'}
+          </button>
+        </div>
+
+        {/* Total monthly spend */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 36, fontWeight: 700, color: C.primary, letterSpacing: '-0.03em', lineHeight: 1, fontFeatureSettings: '"tnum"' }}>
+            ${totalMonthly.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </div>
+          <div style={{ fontSize: 13, color: C.secondary, marginTop: 4 }}>monthly software spend across {subs.length} subscription{subs.length !== 1 ? 's' : ''}</div>
+        </div>
+
+        {/* Donut chart + legend */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28, marginBottom: 28 }}>
+          <div style={{ position: 'relative' as const, flexShrink: 0, width: 148, height: 148 }}>
+            <svg width="148" height="148" viewBox="0 0 148 148">
+              {/* Background track */}
+              <circle cx="74" cy="74" r={radius} fill="none" stroke={C.border} strokeWidth="18" />
+              {/* Segments */}
+              {segments.map((seg, i) => (
+                <circle
+                  key={seg.cat}
+                  cx="74" cy="74" r={radius}
+                  fill="none"
+                  stroke={seg.color}
+                  strokeWidth="18"
+                  strokeDasharray={`${seg.dash} ${circumference - seg.dash}`}
+                  strokeDashoffset={-seg.offset}
+                  strokeLinecap="butt"
+                  transform="rotate(-90 74 74)"
+                  style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                />
+              ))}
+            </svg>
+            {/* Center label */}
+            <div style={{
+              position: 'absolute' as const, top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              textAlign: 'center' as const,
+            }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, fontFeatureSettings: '"tnum"', lineHeight: 1 }}>
+                ${totalMonthly >= 1000 ? `${(totalMonthly / 1000).toFixed(1)}K` : totalMonthly.toLocaleString()}
+              </div>
+              <div style={{ fontSize: 10, color: C.tertiary, marginTop: 2 }}>/month</div>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, flex: 1 }}>
+            {segments.map(seg => (
+              <div key={seg.cat} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 3, background: seg.color, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: C.primary, textTransform: 'capitalize' as const }}>{seg.cat}</div>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.primary, fontFeatureSettings: '"tnum"', flexShrink: 0 }}>
+                  ${seg.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Vendor bar chart */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.tertiary, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 8 }}>
+            By vendor
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+            {sorted.map(sub => {
+              const barPct = maxCost > 0 ? (sub.monthly_cost / maxCost) * 100 : 0;
+              const color = CATEGORY_COLORS[sub.category] ?? CATEGORY_COLORS.other;
+              return (
+                <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 100, fontSize: 12, fontWeight: 500, color: C.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+                    {sub.vendor}
+                  </div>
+                  <div style={{ flex: 1, height: 18, background: C.surface, borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${Math.max(barPct, 2)}%`, height: '100%',
+                      background: color, borderRadius: 4, opacity: 0.75,
+                      transition: 'width 0.4s ease',
+                    }} />
+                  </div>
+                  <div style={{ width: 56, fontSize: 12, fontWeight: 600, color: C.primary, textAlign: 'right' as const, fontFeatureSettings: '"tnum"', flexShrink: 0 }}>
+                    ${sub.monthly_cost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* CTA — Find credits */}
+        <button
+          onClick={async () => {
+            setLocal(l => ({ ...l, loading: true }));
+            await sendFollowUpMessage('Find all matching credit opportunities for these subscriptions and refresh the dashboard');
+          }}
+          disabled={local.loading}
+          style={{
+            width: '100%', padding: '14px 16px',
+            background: C.accentSoft, border: `1px solid ${C.accent}`,
+            borderRadius: 10, cursor: 'pointer',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 600, color: C.accentText }}>
+            {local.loading ? 'Searching...' : 'Find credits for these tools'}
+          </span>
+          {!local.loading && (
+            <span style={{ fontSize: 16, color: C.accentText }}>&rarr;</span>
+          )}
+        </button>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════
   // DASHBOARD — Has data (opportunities / subscriptions)
   // ═══════════════════════════════════════════════════════
   const pipelineSteps = [
-    { key: 'opportunities' as const, label: 'Found', value: opps.length, done: opps.length > 0 },
+    { key: 'opportunities' as const, label: 'Opportunities', value: opps.length, done: opps.length > 0 },
     { key: 'applied' as const, label: 'Applied', value: emails.length, done: emails.length > 0 },
     { key: 'replies' as const, label: 'Replies', value: replies.length, done: replies.length > 0 },
+    ...(subs.length > 0 ? [{ key: 'subscriptions' as const, label: 'Subscriptions', value: subs.length, done: true }] : []),
   ];
 
   // What should the user do next?
   const nextAction = (() => {
     if (opps.length > 0 && emails.length === 0 && easyOpps.length > 0)
-      return { msg: `${easyOpps.length} easy applications ready`, action: 'Start applying', handler: handleApplyAll };
+      return { msg: directMatchOpps.length > 0 ? `${easyOpps.length} easy apps ready \u00b7 ${directMatchOpps.length} match your tools` : `${easyOpps.length} easy applications ready`, action: 'Start applying', handler: handleApplyAll };
     if (emails.length > 0 && replies.length === 0)
       return { msg: `${emails.length} sent. Check for replies?`, action: 'Check replies', handler: handleCheckReplies };
     if (replies.length > 0)
@@ -312,6 +531,42 @@ function HunterAIDashboardInner() {
           {local.loading ? '\u23f3' : '\u21bb'}
         </button>
       </div>
+
+      {/* Gmail connect banner */}
+      {!gmailConnected && hasData && (
+        <div style={{
+          padding: '12px 16px', background: isDark ? 'rgba(234,179,8,0.1)' : '#fefce8',
+          border: `1px solid ${isDark ? 'rgba(234,179,8,0.3)' : '#fde68a'}`,
+          borderRadius: 10, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.primary }}>
+              Connect Gmail to send applications
+            </div>
+            <div style={{ fontSize: 12, color: C.secondary, marginTop: 2 }}>
+              {local.gmailPolling ? 'Waiting for authorization...' : 'Emails are sent from your own Gmail account'}
+            </div>
+          </div>
+          {gmailAuthUrl && !local.gmailPolling && (
+            <a
+              href={gmailAuthUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleConnectGmail}
+              style={{
+                padding: '8px 16px', borderRadius: 8,
+                background: C.btnPrimary, color: C.btnPriTx, fontSize: 12, fontWeight: 600,
+                textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0,
+              }}
+            >
+              Connect Gmail
+            </a>
+          )}
+          {local.gmailPolling && (
+            <div style={{ fontSize: 12, color: C.tertiary, flexShrink: 0 }}>Polling...</div>
+          )}
+        </div>
+      )}
 
       {/* Draft email overlay */}
       {local.draftEmail && (
@@ -339,12 +594,12 @@ function HunterAIDashboardInner() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleSendDraft} disabled={local.sendingEmail} style={{
+            <button onClick={handleSendDraft} disabled={local.sendingEmail || !gmailConnected} style={{
               flex: 1, padding: '10px', border: 'none', borderRadius: 8,
-              background: C.btnPrimary, color: C.btnPriTx, fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', opacity: local.sendingEmail ? 0.5 : 1,
+              background: gmailConnected ? C.btnPrimary : C.muted, color: C.btnPriTx, fontSize: 13, fontWeight: 600,
+              cursor: gmailConnected ? 'pointer' : 'not-allowed', opacity: local.sendingEmail ? 0.5 : 1,
             }}>
-              {local.sendingEmail ? 'Sending...' : 'Send email'}
+              {local.sendingEmail ? 'Sending...' : gmailConnected ? 'Send email' : 'Connect Gmail first'}
             </button>
             <button onClick={() => {
               const d = local.draftEmail!;
@@ -358,6 +613,20 @@ function HunterAIDashboardInner() {
               background: C.btnSecBg, color: C.btnSecTx, fontSize: 13, fontWeight: 500, cursor: 'pointer',
             }}>Cancel</button>
           </div>
+          {!gmailConnected && gmailAuthUrl && (
+            <div style={{ marginTop: 8, fontSize: 12, color: C.secondary }}>
+              <a
+                href={gmailAuthUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleConnectGmail}
+                style={{ color: C.accentText, textDecoration: 'underline' }}
+              >
+                Connect Gmail
+              </a>
+              {' '}to enable sending
+            </div>
+          )}
         </div>
       )}
 
@@ -367,7 +636,36 @@ function HunterAIDashboardInner() {
           <div style={{ fontSize: 36, fontWeight: 700, color: C.primary, letterSpacing: '-0.03em', lineHeight: 1, fontFeatureSettings: '"tnum"' }}>
             {totalValue > 0 ? `$${(totalValue / 1000).toFixed(totalValue % 1000 === 0 ? 0 : 1)}K` : '$0'}
           </div>
-          <div style={{ fontSize: 13, color: C.secondary, marginTop: 4 }}>potential savings found</div>
+          <div style={{ fontSize: 13, color: C.secondary, marginTop: 4 }}>total credits available</div>
+
+          {/* Spend vs savings context */}
+          {subs.length > 0 && opps.length > 0 && (
+            <div style={{
+              marginTop: 14, padding: '12px 14px', background: C.surface,
+              border: `1px solid ${C.border}`, borderRadius: 8,
+              display: 'flex', gap: 0,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: C.tertiary, textTransform: 'uppercase' as const, letterSpacing: '0.05em', fontWeight: 500 }}>Your spend</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.primary, fontFeatureSettings: '"tnum"', marginTop: 2 }}>
+                  {totalMonthlySpend.toLocaleString()}/mo
+                </div>
+                <div style={{ fontSize: 11, color: C.tertiary, marginTop: 1 }}>
+                  across {subs.length} tools
+                </div>
+              </div>
+              <div style={{ width: 1, background: C.border, margin: '0 14px' }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: C.tertiary, textTransform: 'uppercase' as const, letterSpacing: '0.05em', fontWeight: 500 }}>Direct matches</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.accentText, fontFeatureSettings: '"tnum"', marginTop: 2 }}>
+                  {fmtCurrency(directMatchValue)}
+                </div>
+                <div style={{ fontSize: 11, color: C.tertiary, marginTop: 1 }}>
+                  {directMatchOpps.length} credits for tools you use
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -547,6 +845,49 @@ function HunterAIDashboardInner() {
             </div>
           </>
         )
+      )}
+
+      {/* ── Subscriptions view ───────────────────────── */}
+      {local.activeView === 'subscriptions' && !local.draftEmail && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.tertiary, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+              Detected ({subs.length})
+            </span>
+            <span style={{ fontSize: 12, color: C.secondary, fontWeight: 500, fontFeatureSettings: '"tnum"' }}>
+              {totalMonthlySpend.toLocaleString()}/mo
+            </span>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', background: C.elevated }}>
+            {subs.map((sub, i) => {
+              const matchedOpp = opps.find(o => o.matched_subscription?.toLowerCase() === sub.vendor.toLowerCase());
+              return (
+                <div key={sub.id} style={{
+                  padding: '10px 12px', borderBottom: i < subs.length - 1 ? `1px solid ${C.borderSub}` : 'none',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.primary }}>{sub.vendor}</div>
+                    <div style={{ fontSize: 11, color: C.tertiary }}>{sub.category}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontSize: 13, color: C.secondary, fontFeatureSettings: '"tnum"' }}>
+                      {sub.monthly_cost.toLocaleString()}/mo
+                    </span>
+                    {matchedOpp && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 500, color: C.accentText, background: C.accentSoft,
+                        padding: '2px 6px', borderRadius: 4,
+                      }}>
+                        {fmtCurrency(matchedOpp.potential_value)} credit
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* ── Replies view ─────────────────────────────── */}

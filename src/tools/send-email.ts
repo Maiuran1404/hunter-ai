@@ -134,3 +134,14 @@ export const sendEmailSchema = z.object({
   thread_id: z.string().optional(),
   demo_mode: z.boolean().optional(),
 });
+
+// ── Gmail Status ────────────────────────────────────────────
+export const getGmailStatusSchema = z.object({});
+
+export async function getGmailStatusTool(): Promise<{ connected: boolean; auth_url: string | null }> {
+  const connected = !!state.gmail_tokens.refresh_token;
+  return {
+    connected,
+    auth_url: connected ? null : getGmailAuthUrl(),
+  };
+}

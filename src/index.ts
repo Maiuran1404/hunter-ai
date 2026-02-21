@@ -5,7 +5,7 @@ import { analyzeStatementTool, analyzeStatementSchema } from "./tools/analyze-st
 import { findOpportunitiesTool, findOpportunitiesSchema } from "./tools/find-opportunities.js";
 import { saveProfileTool, saveProfileSchema } from "./tools/save-profile.js";
 import { draftEmailTool, draftEmailSchema } from "./tools/draft-email.js";
-import { sendEmailTool, sendEmailSchema, getGmailAuthUrl, handleGmailCallback } from "./tools/send-email.js";
+import { sendEmailTool, sendEmailSchema, getGmailAuthUrl, handleGmailCallback, getGmailStatusTool, getGmailStatusSchema } from "./tools/send-email.js";
 import { fillFormTool, fillFormSchema } from "./tools/fill-form.js";
 import { checkRepliesTool, checkRepliesSchema, sendReplyTool, sendReplySchema } from "./tools/check-replies.js";
 import { dailyDigestTool, dailyDigestSchema, configureDigestTool, configureDigestSchema } from "./tools/daily-digest.js";
@@ -36,6 +36,7 @@ server.tool(
   },
   async () => {
     const totalValue = state.opportunities.reduce((s, o) => s + o.potential_value, 0);
+    const gmailConnected = !!state.gmail_tokens.refresh_token;
     return widget({
       props: {
         opportunities: state.opportunities,
@@ -43,6 +44,8 @@ server.tool(
         subscriptions: state.subscriptions,
         profile: state.profile,
         total_potential_value: totalValue,
+        gmail_connected: gmailConnected,
+        gmail_auth_url: gmailConnected ? null : getGmailAuthUrl(),
       },
       output: text(
         state.opportunities.length > 0
@@ -133,6 +136,24 @@ server.tool(
     try {
       const result = await draftEmailTool(input);
       return object({ ...result });
+    } catch (err) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  }
+);
+
+// ── Gmail Status ────────────────────────────────────────────
+server.tool(
+  {
+    name: "get_gmail_status",
+    description: "Check whether Gmail OAuth is connected and get the auth URL if not",
+    schema: getGmailStatusSchema,
+    annotations: { readOnlyHint: true },
+  },
+  async () => {
+    try {
+      const result = await getGmailStatusTool();
+      return object(result);
     } catch (err) {
       return error(err instanceof Error ? err.message : String(err));
     }
@@ -288,7 +309,25 @@ server.app.get("/auth/gmail/callback", async (c) => {
   if (!code) return c.text("Missing code parameter", 400);
   try {
     await handleGmailCallback(code);
-    return c.html("<h2>Gmail connected!</h2><p>You can close this tab.</p>");
+    return c.html(`<!DOCTYPE html>
+<html>
+<head><title>HunterAI — Gmail Connected</title>
+<style>
+  body { font-family: -apple-system,BlinkMacSystemFont,sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; background:#f5f5f5; }
+  .card { background:#fff; border-radius:16px; padding:48px; text-align:center; box-shadow:0 4px 24px rgba(0,0,0,0.08); max-width:380px; }
+  h1 { margin:0 0 8px; font-size:28px; } p { color:#666; margin:0 0 12px; }
+  .check { font-size:48px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="check">&#10003;</div>
+    <h1>Gmail Connected</h1>
+    <p>Your Gmail account is now linked to HunterAI.</p>
+    <p>Return to your chat — the dashboard will update automatically.</p>
+  </div>
+</body>
+</html>`);
   } catch (err) {
     return c.text(`Gmail auth failed: ${err instanceof Error ? err.message : String(err)}`, 500);
   }
