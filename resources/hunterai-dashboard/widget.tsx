@@ -622,13 +622,19 @@ function HunterAIDashboardInner() {
           subs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: C.black, marginBottom: 6 }}>No subscriptions detected</div>
-              <div style={{ fontSize: 13, color: C.g400, marginBottom: 16, maxWidth: 260, margin: '0 auto 16px' }}>
-                Import a bank statement or connect Puzzle to detect your SaaS spend.
+              <div style={{ fontSize: 13, color: C.g400, marginBottom: 16, maxWidth: 280, margin: '0 auto 16px' }}>
+                Scan your website to detect tools, import a bank statement, or connect Puzzle.
               </div>
-              <button onClick={() => sendFollowUpMessage('Analyze my bank statement or connect Puzzle to detect subscriptions')} style={{
-                padding: '8px 16px', border: 'none', borderRadius: 6, background: C.black,
-                color: C.white, fontSize: 13, fontWeight: 500, cursor: 'pointer',
-              }}>Import subscriptions</button>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' as const }}>
+                <button onClick={() => sendFollowUpMessage('Scan my website to detect my tech stack and find credits. Ask me for my URL.')} style={{
+                  padding: '8px 16px', border: 'none', borderRadius: 6, background: C.black,
+                  color: C.white, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                }}>Scan website</button>
+                <button onClick={() => sendFollowUpMessage('Analyze my bank statement or connect Puzzle to detect subscriptions')} style={{
+                  padding: '8px 16px', border: `1px solid ${C.g200}`, borderRadius: 6, background: C.white,
+                  color: C.g600, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                }}>Import statement</button>
+              </div>
             </div>
           ) : (
             <>
@@ -653,6 +659,7 @@ function HunterAIDashboardInner() {
                         <div>
                           <span style={{ fontSize: 13, fontWeight: 600, color: C.black }}>{sub.vendor}</span>
                           <span style={{ fontSize: 11, color: C.g400, marginLeft: 8 }}>{sub.category}</span>
+                          {sub.source === 'website' && <span style={{ fontSize: 9, color: C.g400, marginLeft: 6, background: C.g100, padding: '1px 4px', borderRadius: 3 }}>web</span>}
                         </div>
                         <span style={{ fontSize: 13, fontWeight: 600, color: C.black, fontFeatureSettings: '"tnum"' }}>
                           ${sub.monthly_cost}<span style={{ fontSize: 11, fontWeight: 400, color: C.g400 }}>/mo</span>

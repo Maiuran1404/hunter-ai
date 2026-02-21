@@ -6,7 +6,7 @@ export interface Subscription {
   account_email?: string;
   category: 'infrastructure'|'productivity'|'design'|'analytics'|'other';
   confidence: number;
-  source: 'csv'|'pdf'|'manual'|'demo';
+  source: 'csv'|'pdf'|'manual'|'demo'|'website';
 }
 
 export interface CompanyProfile {
@@ -104,7 +104,7 @@ export interface GmailTokens {
 export type ActivityType =
   | 'opportunity_found' | 'email_sent' | 'email_failed'
   | 'form_filled' | 'reply_received' | 'reply_sent'
-  | 'profile_saved' | 'statement_analyzed';
+  | 'profile_saved' | 'statement_analyzed' | 'website_scanned';
 
 export interface ActivityEntry {
   id: string;

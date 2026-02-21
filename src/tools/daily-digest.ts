@@ -28,6 +28,7 @@ const TYPE_LABELS: Record<ActivityType, string> = {
   reply_sent: 'Replies Sent',
   profile_saved: 'Profile Updates',
   statement_analyzed: 'Statements Analyzed',
+  website_scanned: 'Websites Scanned',
 };
 
 function buildStats(entries: ActivityEntry[]) {

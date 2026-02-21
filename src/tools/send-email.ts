@@ -1,8 +1,12 @@
 import { z } from 'zod';
 import { google } from 'googleapis';
+import { Resend } from 'resend';
 import { state, isDemoMode, saveTokens, logActivity } from '../state.js';
 import { randomUUID } from 'crypto';
 import type { SentEmail } from '../types.js';
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const RESEND_FROM = process.env.RESEND_FROM || 'HunterAI <noreply@notifications.craftedstudio.ai>';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
@@ -77,36 +81,54 @@ export async function sendEmailTool(input: {
     };
   }
 
-  if (!state.gmail_tokens.refresh_token) {
-    throw new Error('Gmail not connected. Visit /auth/gmail to authenticate.');
-  }
+  // Try Resend first, then Gmail as fallback
+  let messageId: string | undefined;
+  let threadId: string | undefined;
 
-  const client = createOAuth2Client();
-  const gmail = google.gmail({ version: 'v1', auth: client });
-
-  const raw = Buffer.from(
-    `To: ${input.to}\r\nSubject: ${input.subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${input.body}`
-  ).toString('base64url');
-
-  let response;
-  try {
-    response = await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: {
-        raw,
-        threadId: input.thread_id || undefined,
-      },
-    });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logActivity('email_failed', `Failed to send email to ${input.to}: ${msg}`, { to: input.to, program_id: input.program_id, error: msg });
-    throw new Error(`Gmail send failed: ${msg}`);
+  if (resend) {
+    // Send via Resend
+    try {
+      const { data, error } = await resend.emails.send({
+        from: RESEND_FROM,
+        to: [input.to],
+        subject: input.subject,
+        text: input.body,
+        replyTo: state.profile?.contact_email || undefined,
+      });
+      if (error) throw new Error(error.message);
+      messageId = data?.id;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logActivity('email_failed', `Failed to send email to ${input.to} via Resend: ${msg}`, { to: input.to, program_id: input.program_id, error: msg });
+      throw new Error(`Resend send failed: ${msg}`);
+    }
+  } else if (state.gmail_tokens.refresh_token) {
+    // Fallback to Gmail OAuth
+    const client = createOAuth2Client();
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    const raw = Buffer.from(
+      `To: ${input.to}\r\nSubject: ${input.subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${input.body}`
+    ).toString('base64url');
+    try {
+      const response = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: { raw, threadId: input.thread_id || undefined },
+      });
+      messageId = response.data.id ?? undefined;
+      threadId = response.data.threadId ?? undefined;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logActivity('email_failed', `Failed to send email to ${input.to}: ${msg}`, { to: input.to, program_id: input.program_id, error: msg });
+      throw new Error(`Gmail send failed: ${msg}`);
+    }
+  } else {
+    throw new Error('No email provider configured. Set RESEND_API_KEY or connect Gmail via /auth/gmail.');
   }
 
   const sent: SentEmail = {
     id: emailId,
-    gmail_message_id: response.data.id ?? undefined,
-    gmail_thread_id: response.data.threadId ?? undefined,
+    gmail_message_id: messageId,
+    gmail_thread_id: threadId || input.thread_id,
     program_id: input.program_id,
     to: input.to,
     subject: input.subject,
