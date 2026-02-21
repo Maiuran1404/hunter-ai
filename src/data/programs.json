@@ -1,0 +1,1060 @@
+[
+  {
+    "id": "aws-activate-founders",
+    "name": "AWS Activate Founders",
+    "vendor": "Amazon Web Services",
+    "type": "startup_program",
+    "potential_value": 10000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://aws.amazon.com/activate/",
+    "application_type": "form"
+  },
+  {
+    "id": "aws-activate-portfolio",
+    "name": "AWS Activate Portfolio",
+    "vendor": "Amazon Web Services",
+    "type": "startup_program",
+    "potential_value": 100000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator", "Techstars", "500 Global", "Antler", "Plug and Play", "Seedcamp", "Station F"]
+    },
+    "application_url": "https://aws.amazon.com/activate/portfolio/",
+    "application_type": "form"
+  },
+  {
+    "id": "google-for-startups",
+    "name": "Google for Startups Cloud Program",
+    "vendor": "Google Cloud",
+    "type": "startup_program",
+    "potential_value": 200000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "max_arr": 5000000,
+      "max_team_size": 100
+    },
+    "application_url": "https://cloud.google.com/startup",
+    "application_type": "form"
+  },
+  {
+    "id": "microsoft-founders-hub",
+    "name": "Microsoft for Startups Founders Hub",
+    "vendor": "Microsoft Azure",
+    "type": "startup_program",
+    "potential_value": 150000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "max_arr": 10000000,
+      "max_team_size": 200
+    },
+    "application_url": "https://www.microsoft.com/en-us/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "anthropic-startup-program",
+    "name": "Anthropic Startup Program",
+    "vendor": "Anthropic",
+    "type": "startup_program",
+    "potential_value": 25000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-04-10",
+    "eligibility": {
+      "max_arr": 5000000,
+      "max_team_size": 100
+    },
+    "application_url": "https://www.anthropic.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "vercel-startup-program",
+    "name": "Vercel Startup Program",
+    "vendor": "Vercel",
+    "type": "startup_program",
+    "potential_value": 15000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "max_arr": 3000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://vercel.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "stripe-atlas",
+    "name": "Stripe Atlas Startup Credits",
+    "vendor": "Stripe",
+    "type": "startup_program",
+    "potential_value": 70000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-04-05",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 20
+    },
+    "application_url": "https://stripe.com/atlas",
+    "application_type": "form"
+  },
+  {
+    "id": "github-enterprise-startups",
+    "name": "GitHub for Startups",
+    "vendor": "GitHub",
+    "type": "startup_program",
+    "potential_value": 20000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-02-28",
+    "eligibility": {
+      "max_arr": 5000000,
+      "max_team_size": 100
+    },
+    "application_url": "https://github.com/enterprise/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "digitalocean-hatch",
+    "name": "DigitalOcean Hatch",
+    "vendor": "DigitalOcean",
+    "type": "startup_program",
+    "potential_value": 10000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "max_arr": 500000,
+      "max_team_size": 30
+    },
+    "application_url": "https://www.digitalocean.com/hatch",
+    "application_type": "form"
+  },
+  {
+    "id": "notion-startup-plan",
+    "name": "Notion for Startups",
+    "vendor": "Notion",
+    "type": "startup_program",
+    "potential_value": 6000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://www.notion.so/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "hubspot-for-startups",
+    "name": "HubSpot for Startups",
+    "vendor": "HubSpot",
+    "type": "startup_program",
+    "potential_value": 60000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator", "Techstars", "500 Global", "Antler", "Plug and Play"]
+    },
+    "application_url": "https://www.hubspot.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "openai-startup-credits",
+    "name": "OpenAI Startup Credits",
+    "vendor": "OpenAI",
+    "type": "startup_program",
+    "potential_value": 25000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "max_arr": 5000000,
+      "max_team_size": 100
+    },
+    "application_url": "https://openai.com/form/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "segment-startup-program",
+    "name": "Segment Startup Program",
+    "vendor": "Twilio Segment",
+    "type": "startup_program",
+    "potential_value": 25000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "max_arr": 2000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://segment.com/startup-program/",
+    "application_type": "form"
+  },
+  {
+    "id": "airtable-startup-program",
+    "name": "Airtable for Startups",
+    "vendor": "Airtable",
+    "type": "startup_program",
+    "potential_value": 12000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://airtable.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "datadog-startup-program",
+    "name": "Datadog for Startups",
+    "vendor": "Datadog",
+    "type": "startup_program",
+    "potential_value": 10000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "max_arr": 5000000,
+      "max_team_size": 100
+    },
+    "application_url": "https://www.datadoghq.com/partner/startups/",
+    "application_type": "form"
+  },
+  {
+    "id": "slack-startup-program",
+    "name": "Slack Pro Free for Startups",
+    "vendor": "Slack",
+    "type": "startup_program",
+    "potential_value": 5000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-02-15",
+    "eligibility": {
+      "max_arr": 500000,
+      "max_team_size": 50
+    },
+    "application_url": "https://slack.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "twilio-startups",
+    "name": "Twilio Startups",
+    "vendor": "Twilio",
+    "type": "startup_program",
+    "potential_value": 5000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://www.twilio.com/en-us/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "cloudflare-startup-plan",
+    "name": "Cloudflare for Startups",
+    "vendor": "Cloudflare",
+    "type": "startup_program",
+    "potential_value": 50000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "max_arr": 3000000,
+      "max_team_size": 100
+    },
+    "application_url": "https://www.cloudflare.com/forstartups/",
+    "application_type": "form"
+  },
+  {
+    "id": "brex-startup-card",
+    "name": "Brex Startup Credit Card",
+    "vendor": "Brex",
+    "type": "startup_program",
+    "potential_value": 25000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "max_arr": 5000000,
+      "max_team_size": 200
+    },
+    "application_url": "https://brex.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "retool-startup-program",
+    "name": "Retool for Startups",
+    "vendor": "Retool",
+    "type": "startup_program",
+    "potential_value": 25000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "max_arr": 3000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://retool.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "algolia-startup-program",
+    "name": "Algolia for Startups",
+    "vendor": "Algolia",
+    "type": "startup_program",
+    "potential_value": 10000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-02-20",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://www.algolia.com/startups/",
+    "application_type": "form"
+  },
+  {
+    "id": "mongodb-startup-program",
+    "name": "MongoDB for Startups",
+    "vendor": "MongoDB",
+    "type": "startup_program",
+    "potential_value": 5000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "max_arr": 2000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://www.mongodb.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "supabase-startup-program",
+    "name": "Supabase for Startups",
+    "vendor": "Supabase",
+    "type": "startup_program",
+    "potential_value": 5000,
+    "currency": "USD",
+    "verified": false,
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 30
+    },
+    "application_url": "https://supabase.com/startups",
+    "application_type": "form",
+    "notes": "⚠️ Program details may have changed, verify on website"
+  },
+  {
+    "id": "linear-startup-plan",
+    "name": "Linear for Startups",
+    "vendor": "Linear",
+    "type": "startup_program",
+    "potential_value": 3600,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "max_arr": 500000,
+      "max_team_size": 25
+    },
+    "application_url": "https://linear.app/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "figma-startup-program",
+    "name": "Figma for Startups",
+    "vendor": "Figma",
+    "type": "startup_program",
+    "potential_value": 6000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://www.figma.com/startups/",
+    "application_type": "form"
+  },
+  {
+    "id": "intercom-startup-program",
+    "name": "Intercom for Startups",
+    "vendor": "Intercom",
+    "type": "startup_program",
+    "potential_value": 30000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://www.intercom.com/early-stage",
+    "application_type": "form"
+  },
+  {
+    "id": "mixpanel-startup-program",
+    "name": "Mixpanel for Startups",
+    "vendor": "Mixpanel",
+    "type": "startup_program",
+    "potential_value": 50000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "max_arr": 5000000,
+      "max_team_size": 100
+    },
+    "application_url": "https://mixpanel.com/startups/",
+    "application_type": "form"
+  },
+  {
+    "id": "amplitude-startup-program",
+    "name": "Amplitude Startup Scholarship",
+    "vendor": "Amplitude",
+    "type": "startup_program",
+    "potential_value": 36000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "max_arr": 2000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://amplitude.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "sendgrid-startup-program",
+    "name": "SendGrid Startup Program",
+    "vendor": "Twilio SendGrid",
+    "type": "startup_program",
+    "potential_value": 3000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-02-15",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://sendgrid.com/accelerate/",
+    "application_type": "form"
+  },
+  {
+    "id": "auth0-startup-program",
+    "name": "Auth0 for Startups",
+    "vendor": "Auth0",
+    "type": "startup_program",
+    "potential_value": 20000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-05",
+    "eligibility": {
+      "max_arr": 2000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://auth0.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "1password-startup-program",
+    "name": "1Password for Startups",
+    "vendor": "1Password",
+    "type": "startup_program",
+    "potential_value": 3600,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://1password.com/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "freshworks-startup-program",
+    "name": "Freshworks for Startups",
+    "vendor": "Freshworks",
+    "type": "startup_program",
+    "potential_value": 10000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "max_arr": 3000000,
+      "max_team_size": 100
+    },
+    "application_url": "https://www.freshworks.com/for-startups/",
+    "application_type": "form"
+  },
+  {
+    "id": "zendesk-startup-program",
+    "name": "Zendesk for Startups",
+    "vendor": "Zendesk",
+    "type": "startup_program",
+    "potential_value": 5000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "max_arr": 1000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://www.zendesk.com/startups/",
+    "application_type": "form"
+  },
+  {
+    "id": "neo4j-startup-program",
+    "name": "Neo4j for Startups",
+    "vendor": "Neo4j",
+    "type": "startup_program",
+    "potential_value": 30000,
+    "currency": "USD",
+    "verified": false,
+    "eligibility": {
+      "max_arr": 2000000,
+      "max_team_size": 50
+    },
+    "application_url": "https://neo4j.com/startups/",
+    "application_type": "form",
+    "notes": "⚠️ Program availability may vary, check website for latest details"
+  },
+  {
+    "id": "github-enterprise-incubator",
+    "name": "GitHub Enterprise for Incubator Members",
+    "vendor": "GitHub",
+    "type": "incubator_credit",
+    "potential_value": 40000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator", "Techstars", "500 Global", "Antler", "Plug and Play", "Seedcamp"]
+    },
+    "application_url": "https://github.com/enterprise/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "ibm-cloud-incubator",
+    "name": "IBM Cloud for Incubators",
+    "vendor": "IBM Cloud",
+    "type": "incubator_credit",
+    "potential_value": 120000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator", "Techstars", "500 Global"]
+    },
+    "application_url": "https://www.ibm.com/cloud/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "new-relic-incubator",
+    "name": "New Relic for Incubator Startups",
+    "vendor": "New Relic",
+    "type": "incubator_credit",
+    "potential_value": 30000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-02-20",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator", "Techstars", "500 Global", "Antler"]
+    },
+    "application_url": "https://newrelic.com/for-startups",
+    "application_type": "form"
+  },
+  {
+    "id": "elastic-incubator-credits",
+    "name": "Elastic Cloud Incubator Credits",
+    "vendor": "Elastic",
+    "type": "incubator_credit",
+    "potential_value": 20000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator", "Techstars", "Antler", "Seedcamp"]
+    },
+    "application_url": "https://www.elastic.co/industries/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "snowflake-incubator",
+    "name": "Snowflake Startup Incubator Credits",
+    "vendor": "Snowflake",
+    "type": "incubator_credit",
+    "potential_value": 50000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator", "Techstars", "500 Global"]
+    },
+    "application_url": "https://www.snowflake.com/en/data-cloud/startups/",
+    "application_type": "form"
+  },
+  {
+    "id": "databricks-incubator",
+    "name": "Databricks for Startups Incubator",
+    "vendor": "Databricks",
+    "type": "incubator_credit",
+    "potential_value": 40000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator", "Techstars", "500 Global", "Antler"]
+    },
+    "application_url": "https://www.databricks.com/solutions/startups",
+    "application_type": "form"
+  },
+  {
+    "id": "confluent-incubator",
+    "name": "Confluent for Startups Incubator",
+    "vendor": "Confluent",
+    "type": "incubator_credit",
+    "potential_value": 25000,
+    "currency": "USD",
+    "verified": false,
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator", "Techstars"]
+    },
+    "application_url": "https://www.confluent.io/startups/",
+    "application_type": "form",
+    "notes": "⚠️ Incubator credit amounts may have changed, verify with Confluent"
+  },
+  {
+    "id": "antler-disrupt",
+    "name": "Antler Disrupt Deals",
+    "vendor": "Antler",
+    "type": "incubator_portal",
+    "potential_value": 650000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Antler"]
+    },
+    "application_url": "https://www.antler.co/disrupt",
+    "application_type": "incubator_portal",
+    "notes": "Access through Antler Disrupt platform. Login with Antler portfolio credentials to browse and activate vendor deals."
+  },
+  {
+    "id": "antler-full",
+    "name": "Antler Full Portfolio Perks",
+    "vendor": "Antler",
+    "type": "incubator_portal",
+    "potential_value": 4000000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Antler"]
+    },
+    "application_url": "https://www.antler.co/portfolio-perks",
+    "application_type": "incubator_portal",
+    "notes": "Access through Antler portfolio perks portal. Combined value of all perks available to Antler companies. Login with Antler credentials."
+  },
+  {
+    "id": "yc-deals",
+    "name": "Y Combinator Deals",
+    "vendor": "Y Combinator",
+    "type": "incubator_portal",
+    "potential_value": 500000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Y Combinator"]
+    },
+    "application_url": "https://bookface.ycombinator.com/deals",
+    "application_type": "incubator_portal",
+    "notes": "Access through YC Bookface portal. Login with your YC credentials to activate deals from AWS, GCP, Stripe, and more."
+  },
+  {
+    "id": "techstars-perks",
+    "name": "Techstars Perks Program",
+    "vendor": "Techstars",
+    "type": "incubator_portal",
+    "potential_value": 300000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["Techstars"]
+    },
+    "application_url": "https://www.techstars.com/perks",
+    "application_type": "incubator_portal",
+    "notes": "Access through Techstars Central platform. Login with Techstars credentials to browse and activate partner perks."
+  },
+  {
+    "id": "500-global-perks",
+    "name": "500 Global Perks Hub",
+    "vendor": "500 Global",
+    "type": "incubator_portal",
+    "potential_value": 200000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "requires_incubator": true,
+      "incubators": ["500 Global"]
+    },
+    "application_url": "https://500.co/perks",
+    "application_type": "incubator_portal",
+    "notes": "Access through 500 Global alumni portal. Login with 500 Global credentials to browse partner discounts and credits."
+  },
+  {
+    "id": "google-black-founders-fund",
+    "name": "Google for Startups Black Founders Fund",
+    "vendor": "Google",
+    "type": "diversity_grant",
+    "potential_value": 150000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["black"]
+    },
+    "application_url": "https://startup.google.com/programs/black-founders-fund/",
+    "application_type": "form"
+  },
+  {
+    "id": "google-latino-founders-fund",
+    "name": "Google for Startups Latino Founders Fund",
+    "vendor": "Google",
+    "type": "diversity_grant",
+    "potential_value": 150000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["latino"]
+    },
+    "application_url": "https://startup.google.com/programs/latino-founders-fund/",
+    "application_type": "form"
+  },
+  {
+    "id": "google-women-founders-fund",
+    "name": "Google for Startups Women Founders Fund",
+    "vendor": "Google",
+    "type": "diversity_grant",
+    "potential_value": 150000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["woman"]
+    },
+    "application_url": "https://startup.google.com/programs/women-founders-fund/",
+    "application_type": "form"
+  },
+  {
+    "id": "google-asian-founders-fund",
+    "name": "Google for Startups Asian Founders Fund",
+    "vendor": "Google",
+    "type": "diversity_grant",
+    "potential_value": 100000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["asian"]
+    },
+    "application_url": "https://startup.google.com/programs/asian-founders-fund/",
+    "application_type": "form"
+  },
+  {
+    "id": "amber-grant",
+    "name": "Amber Grant for Women",
+    "vendor": "WomensNet",
+    "type": "diversity_grant",
+    "potential_value": 10000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["woman"]
+    },
+    "application_url": "https://ambergrantsforwomen.com/get-your-grant/",
+    "application_type": "form"
+  },
+  {
+    "id": "backstage-capital",
+    "name": "Backstage Capital Fund",
+    "vendor": "Backstage Capital",
+    "type": "diversity_grant",
+    "potential_value": 100000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["black", "latino", "woman", "lgbtq"]
+    },
+    "application_url": "https://backstagecapital.com/",
+    "application_type": "form"
+  },
+  {
+    "id": "fearless-fund",
+    "name": "Fearless Fund Grant",
+    "vendor": "Fearless Fund",
+    "type": "diversity_grant",
+    "potential_value": 20000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-02-28",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["woman", "black"]
+    },
+    "application_url": "https://fearless.fund/fearless-strivers-grant-contest/",
+    "application_type": "form"
+  },
+  {
+    "id": "digitalundivided-big",
+    "name": "digitalundivided BIG Innovation Grant",
+    "vendor": "digitalundivided",
+    "type": "diversity_grant",
+    "potential_value": 25000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["black", "latino", "woman"]
+    },
+    "application_url": "https://www.digitalundivided.com/",
+    "application_type": "form"
+  },
+  {
+    "id": "aws-impact-accelerator-women",
+    "name": "AWS Impact Accelerator for Women",
+    "vendor": "Amazon Web Services",
+    "type": "diversity_grant",
+    "potential_value": 225000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["woman"]
+    },
+    "application_url": "https://aws.amazon.com/startups/accelerators/",
+    "application_type": "form"
+  },
+  {
+    "id": "aws-impact-accelerator-black",
+    "name": "AWS Impact Accelerator for Black Founders",
+    "vendor": "Amazon Web Services",
+    "type": "diversity_grant",
+    "potential_value": 225000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-20",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["black"]
+    },
+    "application_url": "https://aws.amazon.com/startups/accelerators/",
+    "application_type": "form"
+  },
+  {
+    "id": "visible-hands-fund",
+    "name": "Visible Hands Pre-Seed Fund",
+    "vendor": "Visible Hands",
+    "type": "diversity_grant",
+    "potential_value": 50000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["black", "latino", "indigenous", "woman"]
+    },
+    "application_url": "https://www.visiblehands.vc/",
+    "application_type": "form"
+  },
+  {
+    "id": "harlem-capital",
+    "name": "Harlem Capital Diversity Fund",
+    "vendor": "Harlem Capital",
+    "type": "diversity_grant",
+    "potential_value": 100000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-15",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["black", "latino", "woman"]
+    },
+    "application_url": "https://www.harlemcapital.com/",
+    "application_type": "form"
+  },
+  {
+    "id": "ewing-marion-kauffman-grant",
+    "name": "Kauffman Inclusion Open",
+    "vendor": "Ewing Marion Kauffman Foundation",
+    "type": "diversity_grant",
+    "potential_value": 50000,
+    "currency": "USD",
+    "verified": false,
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["black", "latino", "indigenous", "asian", "woman", "lgbtq", "disabled", "veteran"]
+    },
+    "application_url": "https://www.kauffman.org/",
+    "application_type": "form",
+    "notes": "⚠️ Application windows vary by year, check website for current cycle"
+  },
+  {
+    "id": "lgbtq-founders-fund",
+    "name": "Gaingels LGBTQ+ Fund",
+    "vendor": "Gaingels",
+    "type": "diversity_grant",
+    "potential_value": 100000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["lgbtq"]
+    },
+    "application_url": "https://gaingels.com/",
+    "application_type": "form"
+  },
+  {
+    "id": "disability-owned-business-grant",
+    "name": "Disability:IN Startup Grant",
+    "vendor": "Disability:IN",
+    "type": "diversity_grant",
+    "potential_value": 25000,
+    "currency": "USD",
+    "verified": false,
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["disabled"]
+    },
+    "application_url": "https://disabilityin.org/",
+    "application_type": "form",
+    "notes": "⚠️ Grant availability and amounts vary by cycle, verify current programs"
+  },
+  {
+    "id": "veteran-founders-fund",
+    "name": "Bunker Labs Veteran Startup Fund",
+    "vendor": "Bunker Labs",
+    "type": "diversity_grant",
+    "potential_value": 35000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-10",
+    "eligibility": {
+      "requires_any_identity": true,
+      "requires_identities": ["veteran"]
+    },
+    "application_url": "https://bfranchise.bfranchise.org/",
+    "application_type": "form"
+  },
+  {
+    "id": "innovasjon-norge-etablerertilskudd",
+    "name": "Innovasjon Norge Etablerertilskudd",
+    "vendor": "Innovasjon Norge",
+    "type": "government_grant",
+    "potential_value": 500000,
+    "currency": "NOK",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "geographies": ["NO"]
+    },
+    "application_url": "https://www.innovasjonnorge.no/tjenester/oppstartsfinansiering/etablerertilskudd",
+    "application_type": "form"
+  },
+  {
+    "id": "innovasjon-norge-innovasjonskontrakter",
+    "name": "Innovasjon Norge Innovasjonskontrakter",
+    "vendor": "Innovasjon Norge",
+    "type": "government_grant",
+    "potential_value": 1400000,
+    "currency": "NOK",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "geographies": ["NO"]
+    },
+    "application_url": "https://www.innovasjonnorge.no/tjenester/innovasjon-og-utvikling/innovasjonskontrakter",
+    "application_type": "form"
+  },
+  {
+    "id": "forskningsradet-bip",
+    "name": "Forskningsrådet BIP (Brukerstyrt Innovasjonsprosjekt)",
+    "vendor": "Norges Forskningsråd",
+    "type": "government_grant",
+    "potential_value": 6000000,
+    "currency": "NOK",
+    "verified": true,
+    "last_verified": "2025-04-01",
+    "eligibility": {
+      "geographies": ["NO"]
+    },
+    "application_url": "https://www.forskningsradet.no/utlysninger/",
+    "application_type": "form"
+  },
+  {
+    "id": "negotiation-enterprise-discount",
+    "name": "Enterprise Discount Negotiation",
+    "vendor": "Multiple Vendors",
+    "type": "negotiation",
+    "potential_value": 50000,
+    "currency": "USD",
+    "verified": true,
+    "last_verified": "2025-03-01",
+    "eligibility": {
+      "requires_vendors": ["AWS", "Google Cloud", "Microsoft Azure", "Datadog", "Snowflake"]
+    },
+    "application_url": "mailto:sales@vendor.com",
+    "application_type": "email",
+    "sales_email": "sales@vendor.com"
+  }
+]

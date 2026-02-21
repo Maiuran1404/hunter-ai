@@ -1,0 +1,80 @@
+import { z } from 'zod';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { state, isDemoMode } from '../state.js';
+import { randomUUID } from 'crypto';
+import type { DiscountProgram, Opportunity } from '../types.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function loadPrograms(): DiscountProgram[] {
+  return JSON.parse(readFileSync(join(__dirname, '../../src/data/programs.json'), 'utf8'));
+}
+
+function meetsEligibility(p: DiscountProgram, profile: NonNullable<typeof state.profile>): boolean {
+  const e = p.eligibility;
+  if (e.max_arr && profile.monthly_arr * 12 > e.max_arr) return false;
+  if (e.max_team_size && profile.team_size > e.max_team_size) return false;
+  if (e.geographies?.length && !e.geographies.includes(profile.geography)) return false;
+  if (e.requires_incubator && !profile.incubators?.length) return false;
+  if (e.incubators?.length && !e.incubators.some(i => (profile.incubators ?? []).includes(i))) return false;
+  if (e.requires_vendors?.length && !e.requires_vendors.some(v =>
+    state.subscriptions.some(s => s.normalized_name.includes(v.toLowerCase())))) return false;
+  if (e.requires_identities?.length && profile.founder_identities) {
+    const match = e.requires_any_identity !== false
+      ? e.requires_identities.some(id => profile.founder_identities!.includes(id))
+      : e.requires_identities.every(id => profile.founder_identities!.includes(id));
+    if (!match) return false;
+  } else if (e.requires_identities?.length && !profile.founder_identities?.length) return false;
+  return true;
+}
+
+export async function findOpportunitiesTool(input: { demo_mode?: boolean }) {
+  if (!state.profile) throw new Error('No company profile. Call save_company_profile first.');
+  const programs = loadPrograms();
+  const opps: Opportunity[] = [];
+
+  for (const p of programs) {
+    if (!meetsEligibility(p, state.profile)) continue;
+    const matchedSub = state.subscriptions.find(s =>
+      s.normalized_name.includes(p.vendor.toLowerCase()) ||
+      p.vendor.toLowerCase().includes(s.normalized_name)
+    );
+    const effort: 'low'|'medium'|'high' =
+      p.application_type === 'form' ? 'low' :
+      p.application_type === 'email' ? 'low' :
+      p.type === 'negotiation' ? 'high' : 'medium';
+
+    opps.push({
+      id: randomUUID(), program: p,
+      potential_value: p.potential_value, confidence: matchedSub ? 0.9 : 0.75,
+      effort,
+      reasoning: matchedSub
+        ? `You use ${matchedSub.vendor} ($${matchedSub.monthly_cost}/mo) — qualify for their startup program`
+        : `Profile matches ${p.name} eligibility`,
+      matched_subscription: matchedSub?.vendor,
+    });
+  }
+
+  opps.sort((a, b) => b.potential_value - a.potential_value);
+  state.opportunities = opps;
+  const totalValue = opps.reduce((s, o) => s + o.potential_value, 0);
+  const portalCount = opps.filter(o => o.program.type === 'incubator_portal').length;
+
+  return {
+    found: opps.length, total_potential_value: totalValue,
+    opportunities: opps,
+    portal_count: portalCount,
+    suggestions: [
+      { label: `🚀 Apply to all ${opps.filter(o=>o.effort==='low').length} easy ones`, sub: 'form + email apps', primary: true },
+      { label: '🇳🇴 Focus Norwegian grants', sub: `${opps.filter(o=>o.program.type==='government_grant').length} programs` },
+      { label: '📋 Review each opportunity', sub: '' },
+      portalCount > 0 ? { label: `🔗 ${portalCount} portal programs`, sub: 'need manual access' } : null,
+    ].filter(Boolean),
+  };
+}
+
+export const findOpportunitiesSchema = z.object({
+  demo_mode: z.boolean().optional(),
+});
