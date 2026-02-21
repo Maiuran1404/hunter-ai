@@ -7,14 +7,13 @@ const anthropic = new Anthropic();
 
 export async function draftEmailTool(input: {
   opportunity_id: string;
-  demo_mode?: boolean;
 }): Promise<EmailDraft & { suggestions: unknown[] }> {
   const opp = state.opportunities.find(o => o.id === input.opportunity_id);
   if (!opp) throw new Error(`Opportunity ${input.opportunity_id} not found`);
   const profile = state.profile;
   if (!profile) throw new Error('No company profile');
 
-  if (isDemoMode(input.demo_mode) || !process.env.ANTHROPIC_API_KEY?.startsWith('sk-ant-api')) {
+  if (isDemoMode()) {
     return {
       to: opp.program.sales_email || `startups@${opp.program.vendor.toLowerCase()}.com`,
       subject: `Startup Program Application — ${profile.name}`,
@@ -53,5 +52,4 @@ Return ONLY the email body (no subject line). Under 120 words. Warm, professiona
 
 export const draftEmailSchema = z.object({
   opportunity_id: z.string(),
-  demo_mode: z.boolean().optional(),
 });

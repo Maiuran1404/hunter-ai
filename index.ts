@@ -34,11 +34,15 @@ server.tool({
     invoked: 'Statement analyzed',
   },
 }, async (input) => {
-  const result = await analyzeStatementTool(input);
-  return widget({
-    props: result,
-    output: text(`Found ${result.found} subscriptions totaling $${result.total_monthly}/mo`),
-  });
+  try {
+    const result = await analyzeStatementTool(input);
+    return widget({
+      props: result,
+      output: text(`Found ${result.found} subscriptions totaling $${result.total_monthly}/mo`),
+    });
+  } catch (err) {
+    return text(`Error analyzing statement: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: find_opportunities ──────────────────────────────────
@@ -52,11 +56,15 @@ server.tool({
     invoked: 'Opportunities found',
   },
 }, async (input) => {
-  const result = await findOpportunitiesTool(input);
-  return widget({
-    props: result,
-    output: text(`Found ${result.found} opportunities worth $${result.total_potential_value.toLocaleString()}`),
-  });
+  try {
+    const result = await findOpportunitiesTool(input);
+    return widget({
+      props: result,
+      output: text(`Found ${result.found} opportunities worth $${result.total_potential_value.toLocaleString()}`),
+    });
+  } catch (err) {
+    return text(`Error finding opportunities: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: draft_email ─────────────────────────────────────────
@@ -65,8 +73,12 @@ server.tool({
   description: 'Draft a personalized application email for a specific program',
   schema: draftEmailSchema,
 }, async (input) => {
-  const result = await draftEmailTool(input);
-  return text(JSON.stringify(result));
+  try {
+    const result = await draftEmailTool(input);
+    return text(JSON.stringify(result));
+  } catch (err) {
+    return text(`Error drafting email: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: send_email ──────────────────────────────────────────
@@ -80,11 +92,15 @@ server.tool({
     invoked: 'Email sent',
   },
 }, async (input) => {
-  const result = await sendEmailTool(input);
-  return widget({
-    props: result,
-    output: text(`Email sent to ${result.email.to}`),
-  });
+  try {
+    const result = await sendEmailTool(input);
+    return widget({
+      props: result,
+      output: text(`Email sent to ${result.email.to}`),
+    });
+  } catch (err) {
+    return text(`Error sending email: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: fill_form ───────────────────────────────────────────
@@ -93,8 +109,12 @@ server.tool({
   description: 'Auto-fill a program application form using Playwright. Shows preview before submitting.',
   schema: fillFormSchema,
 }, async (input) => {
-  const result = await fillFormTool(input);
-  return text(JSON.stringify(result));
+  try {
+    const result = await fillFormTool(input);
+    return text(JSON.stringify(result));
+  } catch (err) {
+    return text(`Error filling form: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: check_replies ───────────────────────────────────────
@@ -108,11 +128,15 @@ server.tool({
     invoked: 'Replies checked',
   },
 }, async (input) => {
-  const result = await checkRepliesTool(input);
-  return widget({
-    props: result,
-    output: text(`Found ${result.found} new replies`),
-  });
+  try {
+    const result = await checkRepliesTool(input);
+    return widget({
+      props: result,
+      output: text(`Found ${result.found} new replies`),
+    });
+  } catch (err) {
+    return text(`Error checking replies: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: send_reply ──────────────────────────────────────────
@@ -121,8 +145,12 @@ server.tool({
   description: 'Send the AI-drafted or custom reply to a vendor',
   schema: sendReplySchema,
 }, async (input) => {
-  const result = await sendReplyTool(input);
-  return text(JSON.stringify(result));
+  try {
+    const result = await sendReplyTool(input);
+    return text(JSON.stringify(result));
+  } catch (err) {
+    return text(`Error sending reply: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: save_company_profile ────────────────────────────────
@@ -136,11 +164,15 @@ server.tool({
     invoked: 'Profile saved',
   },
 }, async (input) => {
-  const result = await saveProfileTool(input);
-  return widget({
-    props: result,
-    output: text(`Profile saved for ${result.profile.name}`),
-  });
+  try {
+    const result = await saveProfileTool(input);
+    return widget({
+      props: result,
+      output: text(`Profile saved for ${result.profile.name}`),
+    });
+  } catch (err) {
+    return text(`Error saving profile: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: connect_puzzle_api_key ─────────────────────────────
@@ -149,8 +181,12 @@ server.tool({
   description: 'Save your Puzzle.io API key to pull real transaction data',
   schema: connectPuzzleApiKeySchema,
 }, async (input) => {
-  const result = await connectPuzzleApiKeyTool(input);
-  return text(JSON.stringify(result));
+  try {
+    const result = await connectPuzzleApiKeyTool(input);
+    return text(JSON.stringify(result));
+  } catch (err) {
+    return text(`Error connecting Puzzle: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: pull_puzzle_transactions ───────────────────────────
@@ -164,11 +200,15 @@ server.tool({
     invoked: 'Transactions pulled',
   },
 }, async (input) => {
-  const result = await pullPuzzleTransactionsTool(input);
-  return widget({
-    props: result,
-    output: text(`Found ${result.found} subscriptions from Puzzle ($${result.total_monthly}/mo)`),
-  });
+  try {
+    const result = await pullPuzzleTransactionsTool(input);
+    return widget({
+      props: result,
+      output: text(`Found ${result.found} subscriptions from Puzzle ($${result.total_monthly}/mo)`),
+    });
+  } catch (err) {
+    return text(`Error pulling Puzzle transactions: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Tool: show_dashboard ──────────────────────────────────────
@@ -182,17 +222,21 @@ server.tool({
     invoked: 'Dashboard loaded',
   },
 }, async () => {
-  const result = {
-    opportunities: state.opportunities,
-    sent_emails: state.sent_emails,
-    subscriptions: state.subscriptions,
-    profile: state.profile,
-    total_potential_value: state.opportunities.reduce((s, o) => s + o.potential_value, 0),
-  };
-  return widget({
-    props: result,
-    output: text(`Dashboard: ${state.opportunities.length} opportunities, ${state.sent_emails.length} sent`),
-  });
+  try {
+    const result = {
+      opportunities: state.opportunities,
+      sent_emails: state.sent_emails,
+      subscriptions: state.subscriptions,
+      profile: state.profile,
+      total_potential_value: state.opportunities.reduce((s, o) => s + o.potential_value, 0),
+    };
+    return widget({
+      props: result,
+      output: text(`Dashboard: ${state.opportunities.length} opportunities, ${state.sent_emails.length} sent`),
+    });
+  } catch (err) {
+    return text(`Error loading dashboard: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 // ── Gmail OAuth routes ────────────────────────────────────────
@@ -202,8 +246,12 @@ server.app.get('/auth/gmail', (c) => {
 server.app.get('/auth/gmail/callback', async (c) => {
   const code = c.req.query('code');
   if (!code) return c.text('Missing code', 400);
-  await handleGmailCallback(code);
-  return c.text('✅ Gmail Connected — return to Claude and continue');
+  try {
+    await handleGmailCallback(code);
+    return c.text('✅ Gmail Connected — return to Claude and continue');
+  } catch (err) {
+    return c.text(`Gmail auth error: ${err instanceof Error ? err.message : String(err)}`, 500);
+  }
 });
 server.app.get('/auth/gmail/status', (c) => {
   return c.json({ connected: !!state.gmail_tokens.refresh_token });
@@ -219,9 +267,13 @@ server.app.get('/auth/google', (c) => {
 server.app.get('/auth/google/callback', async (c) => {
   const code = c.req.query('code');
   if (!code) return c.text('Missing code', 400);
-  const sessionToken = await handleGoogleLoginCallback(code);
-  c.header('Set-Cookie', `session=${sessionToken}; HttpOnly; SameSite=Lax; Path=/`);
-  return c.redirect('/');
+  try {
+    const sessionToken = await handleGoogleLoginCallback(code);
+    c.header('Set-Cookie', `session=${sessionToken}; HttpOnly; SameSite=Lax; Path=/`);
+    return c.redirect('/');
+  } catch (err) {
+    return c.text(`Google auth error: ${err instanceof Error ? err.message : String(err)}`, 500);
+  }
 });
 server.app.get('/auth/me', (c) => {
   const session = getSessionFromRequest(c.req.header('authorization'));
@@ -239,8 +291,12 @@ server.app.get('/auth/puzzle', (c) => {
 server.app.get('/auth/puzzle/callback', async (c) => {
   const code = c.req.query('code');
   if (!code) return c.text('Missing code', 400);
-  await handlePuzzleCallback(code);
-  return c.text('✅ Puzzle Connected');
+  try {
+    await handlePuzzleCallback(code);
+    return c.text('✅ Puzzle Connected');
+  } catch (err) {
+    return c.text(`Puzzle auth error: ${err instanceof Error ? err.message : String(err)}`, 500);
+  }
 });
 server.app.get('/auth/puzzle/status', (c) => {
   const t = loadPuzzleTokens();

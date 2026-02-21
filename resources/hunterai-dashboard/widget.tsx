@@ -92,7 +92,7 @@ function HunterAIDashboardInner() {
   const handleCheckReplies = useCallback(async () => {
     setLocal(l => ({ ...l, loading: true }));
     try {
-      const result = await callTool('check_replies', { demo_mode: true });
+      const result = await callTool('check_replies', {});
       const data = result.structuredContent as { found: number; emails: SentEmail[] } | undefined;
       if (data) {
         await setMcpState(prev => ({
@@ -108,7 +108,7 @@ function HunterAIDashboardInner() {
   }, [callTool, sendFollowUpMessage, setMcpState]);
 
   const handleSendReply = useCallback(async (emailId: string) => {
-    await callTool('send_reply', { email_id: emailId, demo_mode: true });
+    await callTool('send_reply', { email_id: emailId });
     await sendFollowUpMessage(`Sent reply to ${emailId}. Check for more replies or move on to next application?`);
   }, [callTool, sendFollowUpMessage]);
 
@@ -270,10 +270,31 @@ function HunterAIDashboardInner() {
   );
 }
 
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 24, textAlign: 'center', color: '#ef4444' }}>
+          <h3>Something went wrong</h3>
+          <p style={{ fontSize: 13, color: '#888' }}>{this.state.error.message}</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function HunterAIDashboard() {
   return (
     <McpUseProvider>
-      <HunterAIDashboardInner />
+      <ErrorBoundary>
+        <HunterAIDashboardInner />
+      </ErrorBoundary>
     </McpUseProvider>
   );
 }

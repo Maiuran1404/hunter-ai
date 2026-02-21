@@ -40,8 +40,8 @@ export async function connectPuzzleApiKeyTool(input: { api_key: string }) {
   return { connected: true, message: 'Puzzle API key saved. You can now pull real transactions.' };
 }
 
-export async function pullPuzzleTransactionsTool(input: { demo_mode?: boolean }) {
-  if (isDemoMode(input.demo_mode)) {
+export async function pullPuzzleTransactionsTool(_input: Record<string, never>) {
+  if (isDemoMode()) {
     const demo: Subscription[] = [
       { id: randomUUID(), vendor: 'AWS', normalized_name: 'aws', monthly_cost: 2400, category: 'infrastructure', confidence: 0.98, source: 'csv' },
       { id: randomUUID(), vendor: 'Anthropic', normalized_name: 'anthropic', monthly_cost: 1800, category: 'infrastructure', confidence: 0.98, source: 'csv' },
@@ -70,17 +70,22 @@ export async function pullPuzzleTransactionsTool(input: { demo_mode?: boolean })
   const txns = data.transactions || [];
 
   // Group by vendor, find recurring (2+ charges)
-  const vendorMap = new Map<string, number[]>();
+  const vendorMap = new Map<string, { original: string; amounts: number[] }>();
   for (const t of txns) {
-    const name = t.vendor.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    vendorMap.set(name, [...(vendorMap.get(name) || []), t.amount]);
+    const normalized = t.vendor.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const existing = vendorMap.get(normalized);
+    if (existing) {
+      existing.amounts.push(t.amount);
+    } else {
+      vendorMap.set(normalized, { original: t.vendor, amounts: [t.amount] });
+    }
   }
 
   const subs: Subscription[] = [];
-  for (const [name, amounts] of vendorMap.entries()) {
+  for (const [normalized, { original, amounts }] of vendorMap.entries()) {
     if (amounts.length < 2) continue;
     const avg = amounts.reduce((s, a) => s + a, 0) / amounts.length;
-    subs.push({ id: randomUUID(), vendor: name, normalized_name: name,
+    subs.push({ id: randomUUID(), vendor: original, normalized_name: normalized,
       monthly_cost: Math.round(avg), category: 'other', confidence: 0.85, source: 'csv' });
   }
 
@@ -96,6 +101,4 @@ export async function pullPuzzleTransactionsTool(input: { demo_mode?: boolean })
 export const connectPuzzleApiKeySchema = z.object({
   api_key: z.string().describe('Your Puzzle.io API key'),
 });
-export const pullPuzzleTransactionsSchema = z.object({
-  demo_mode: z.boolean().optional(),
-});
+export const pullPuzzleTransactionsSchema = z.object({});

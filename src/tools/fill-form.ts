@@ -10,7 +10,7 @@ const SCREENSHOT_DIR = '/tmp/hunterAI-screenshots';
 function scheduleCleanup(path: string) {
   setTimeout(() => {
     try { unlinkSync(path); } catch { /* already deleted */ }
-  }, 60_000);
+  }, 300_000);
 }
 
 function getFieldValue(fieldName: string, profile: CompanyProfile): string {
@@ -28,13 +28,26 @@ function getFieldValue(fieldName: string, profile: CompanyProfile): string {
   return '';
 }
 
+function isValidHttpsUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    const hostname = parsed.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' ||
+        hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.') ||
+        hostname === '[::1]') return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function fillFormTool(input: {
   url: string;
   program_id: string;
   submit?: boolean;
-  demo_mode?: boolean;
 }): Promise<FormFillResult> {
-  if (isDemoMode(input.demo_mode)) {
+  if (isDemoMode()) {
     return {
       program_id: input.program_id,
       status: 'needs_review',
@@ -52,6 +65,17 @@ export async function fillFormTool(input: {
       screenshot_path: null,
       fields_filled: [],
       message: 'No company profile saved. Call save_company_profile first.',
+      requires_confirmation: false,
+    };
+  }
+
+  if (!isValidHttpsUrl(input.url)) {
+    return {
+      program_id: input.program_id,
+      status: 'failed',
+      screenshot_path: null,
+      fields_filled: [],
+      message: 'Invalid URL: only HTTPS URLs on public hosts are allowed.',
       requires_confirmation: false,
     };
   }
@@ -134,8 +158,7 @@ export async function fillFormTool(input: {
 }
 
 export const fillFormSchema = z.object({
-  url: z.string(),
+  url: z.string().url(),
   program_id: z.string(),
   submit: z.boolean().optional().default(false),
-  demo_mode: z.boolean().optional(),
 });

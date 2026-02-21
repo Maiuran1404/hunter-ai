@@ -20,8 +20,8 @@ export const state: AppState = {
   sent_emails: [], gmail_tokens: loadTokens(), reply_poll_active: false,
 };
 
-export function isDemoMode(inputFlag?: boolean): boolean {
-  return inputFlag === true || process.env.DEMO_MODE === 'true';
+export function isDemoMode(): boolean {
+  return process.env.DEMO_MODE === 'true';
 }
 
 export function resetState(): void {

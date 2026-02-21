@@ -50,11 +50,10 @@ export async function sendEmailTool(input: {
   body: string;
   program_id: string;
   thread_id?: string;
-  demo_mode?: boolean;
 }): Promise<{ sent: boolean; email: SentEmail; suggestions: unknown[] }> {
   const emailId = randomUUID();
 
-  if (isDemoMode(input.demo_mode)) {
+  if (isDemoMode()) {
     const sent: SentEmail = {
       id: emailId,
       gmail_message_id: `demo-msg-${emailId.slice(0, 8)}`,
@@ -87,13 +86,19 @@ export async function sendEmailTool(input: {
     `To: ${input.to}\r\nSubject: ${input.subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${input.body}`
   ).toString('base64url');
 
-  const response = await gmail.users.messages.send({
-    userId: 'me',
-    requestBody: {
-      raw,
-      threadId: input.thread_id || undefined,
-    },
-  });
+  let response;
+  try {
+    response = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw,
+        threadId: input.thread_id || undefined,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Gmail send failed: ${msg}`);
+  }
 
   const sent: SentEmail = {
     id: emailId,
@@ -123,5 +128,4 @@ export const sendEmailSchema = z.object({
   body: z.string(),
   program_id: z.string(),
   thread_id: z.string().optional(),
-  demo_mode: z.boolean().optional(),
 });

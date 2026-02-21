@@ -60,6 +60,15 @@ async function checkRepliesForAllSentEmails(): Promise<{ found: number; emails: 
           break;
         }
       }
+      if (!body) {
+        for (const part of parts) {
+          if (part.mimeType === 'text/html' && part.body?.data) {
+            const html = Buffer.from(part.body.data, 'base64url').toString('utf-8');
+            body = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            break;
+          }
+        }
+      }
       if (!body && msg.data.payload?.body?.data) {
         body = Buffer.from(msg.data.payload.body.data, 'base64url').toString('utf-8');
       }
@@ -82,12 +91,12 @@ async function checkRepliesForAllSentEmails(): Promise<{ found: number; emails: 
   return { found, emails: state.sent_emails };
 }
 
-export async function checkRepliesTool(input: { demo_mode?: boolean }): Promise<{
+export async function checkRepliesTool(_input: Record<string, never>): Promise<{
   found: number;
   emails: SentEmail[];
   suggestions: unknown[];
 }> {
-  if (isDemoMode(input.demo_mode)) {
+  if (isDemoMode()) {
     const demoSent = state.sent_emails.find(e => !e.reply);
     if (demoSent) {
       demoSent.reply = {
@@ -122,7 +131,6 @@ export async function checkRepliesTool(input: { demo_mode?: boolean }): Promise<
 export async function sendReplyTool(input: {
   email_id: string;
   custom_body?: string;
-  demo_mode?: boolean;
 }): Promise<{ sent: boolean; message: string; suggestions: unknown[] }> {
   const email = state.sent_emails.find(e => e.id === input.email_id);
   if (!email?.reply) throw new Error(`No reply found for email ${input.email_id}`);
@@ -137,7 +145,6 @@ export async function sendReplyTool(input: {
     body,
     program_id: email.program_id,
     thread_id: email.gmail_thread_id,
-    demo_mode: input.demo_mode,
   });
 
   email.reply.ai_response_status = 'sent';
@@ -160,18 +167,15 @@ export function startReplyPolling(intervalMs: number = 24 * 60 * 60 * 1000): voi
     try {
       const result = await checkRepliesForAllSentEmails();
       if (result.found > 0) console.log(`[Replies] Found ${result.found} new replies`);
-    } catch {
-      console.warn('[Replies] Poll error');
+    } catch (err) {
+      console.warn('[Replies] Poll error:', err instanceof Error ? err.message : String(err));
     }
   }, intervalMs);
 }
 
-export const checkRepliesSchema = z.object({
-  demo_mode: z.boolean().optional(),
-});
+export const checkRepliesSchema = z.object({});
 
 export const sendReplySchema = z.object({
   email_id: z.string(),
   custom_body: z.string().optional(),
-  demo_mode: z.boolean().optional(),
 });

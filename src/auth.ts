@@ -37,10 +37,16 @@ export async function handleGoogleCallback(code: string): Promise<string> {
     body: JSON.stringify({ code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
       redirect_uri: GOOGLE_REDIRECT_URI, grant_type: 'authorization_code' }),
   });
+  if (!tokenRes.ok) {
+    throw new Error(`Google token exchange failed: ${tokenRes.status}`);
+  }
   const tokens = await tokenRes.json() as { access_token: string };
   const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
+  if (!userRes.ok) {
+    throw new Error(`Google userinfo fetch failed: ${userRes.status}`);
+  }
   const user = await userRes.json() as { sub: string; email: string; name?: string; picture?: string };
   const userId = upsertUser(user.sub, user.email, user.name, user.picture);
   return createSession(userId, user.email, user.name);

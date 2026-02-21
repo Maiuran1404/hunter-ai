@@ -2,8 +2,21 @@ import { z } from 'zod';
 import { state } from '../state.js';
 import type { CompanyProfile } from '../types.js';
 
-export async function saveProfileTool(input: Record<string, unknown> & { demo_mode?: boolean }) {
-  const { demo_mode, ...profileData } = input;
+interface SaveProfileInput {
+  name?: string;
+  website?: string;
+  stage?: 'pre-seed' | 'seed' | 'series-a' | 'growth';
+  team_size?: number;
+  monthly_arr?: number;
+  incubators?: string[];
+  geography?: string;
+  tech_stack?: string[];
+  contact_email?: string;
+  founder_name?: string;
+  founder_identities?: string[];
+}
+
+export async function saveProfileTool(input: SaveProfileInput) {
   const defaults: CompanyProfile = {
     name: '',
     stage: 'pre-seed',
@@ -14,7 +27,7 @@ export async function saveProfileTool(input: Record<string, unknown> & { demo_mo
     tech_stack: [],
   };
   const existing = state.profile || defaults;
-  state.profile = { ...defaults, ...existing, ...profileData } as CompanyProfile;
+  state.profile = { ...defaults, ...existing, ...input } as CompanyProfile;
   return {
     saved: true, profile: state.profile,
     suggestions: [
@@ -26,15 +39,14 @@ export async function saveProfileTool(input: Record<string, unknown> & { demo_mo
 
 export const saveProfileSchema = z.object({
   name: z.string().optional(),
-  website: z.string().optional(),
+  website: z.string().url().optional(),
   stage: z.enum(['pre-seed','seed','series-a','growth']).optional(),
-  team_size: z.number().optional(),
-  monthly_arr: z.number().optional(),
+  team_size: z.number().int().min(1).optional(),
+  monthly_arr: z.number().min(0).optional(),
   incubators: z.array(z.string()).optional(),
   geography: z.string().optional(),
   tech_stack: z.array(z.string()).optional(),
-  contact_email: z.string().optional(),
+  contact_email: z.string().email().optional(),
   founder_name: z.string().optional(),
   founder_identities: z.array(z.string()).optional(),
-  demo_mode: z.boolean().optional(),
 });

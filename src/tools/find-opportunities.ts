@@ -8,8 +8,12 @@ import type { DiscountProgram, Opportunity } from '../types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+let cachedPrograms: DiscountProgram[] | null = null;
 function loadPrograms(): DiscountProgram[] {
-  return JSON.parse(readFileSync(join(__dirname, '../../src/data/programs.json'), 'utf8'));
+  if (!cachedPrograms) {
+    cachedPrograms = JSON.parse(readFileSync(join(__dirname, '../../src/data/programs.json'), 'utf8'));
+  }
+  return cachedPrograms!;
 }
 
 function meetsEligibility(p: DiscountProgram, profile: NonNullable<typeof state.profile>): boolean {
@@ -30,16 +34,18 @@ function meetsEligibility(p: DiscountProgram, profile: NonNullable<typeof state.
   return true;
 }
 
-export async function findOpportunitiesTool(input: { demo_mode?: boolean }) {
+export async function findOpportunitiesTool(_input: Record<string, never>) {
   if (!state.profile) throw new Error('No company profile. Call save_company_profile first.');
   const programs = loadPrograms();
   const opps: Opportunity[] = [];
 
   for (const p of programs) {
     if (!meetsEligibility(p, state.profile)) continue;
+    const vendorLower = p.vendor.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const matchedSub = state.subscriptions.find(s =>
-      s.normalized_name.includes(p.vendor.toLowerCase()) ||
-      p.vendor.toLowerCase().includes(s.normalized_name)
+      s.normalized_name === vendorLower ||
+      new RegExp(`\\b${vendorLower}\\b`).test(s.normalized_name) ||
+      new RegExp(`\\b${s.normalized_name}\\b`).test(vendorLower)
     );
     const effort: 'low'|'medium'|'high' =
       p.application_type === 'form' ? 'low' :
@@ -75,6 +81,4 @@ export async function findOpportunitiesTool(input: { demo_mode?: boolean }) {
   };
 }
 
-export const findOpportunitiesSchema = z.object({
-  demo_mode: z.boolean().optional(),
-});
+export const findOpportunitiesSchema = z.object({});

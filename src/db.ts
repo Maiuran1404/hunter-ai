@@ -19,7 +19,16 @@ db.exec(`
     picture TEXT,
     created_at INTEGER NOT NULL
   );
+  CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 `);
+
+export function cleanExpiredSessions(): void {
+  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now());
+}
+
+// Clean up on startup
+cleanExpiredSessions();
 
 export function createSession(userId: string, email: string, name?: string): string {
   const token = randomUUID();
