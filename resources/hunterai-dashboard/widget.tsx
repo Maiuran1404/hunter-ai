@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useWidget, McpUseProvider, type WidgetMetadata } from 'mcp-use/react';
-import type { Opportunity, SentEmail, Subscription, CompanyProfile } from '../../src/types.js';
+import type { Opportunity, SentEmail, Subscription, CompanyProfile, EmailDraft } from '../../src/types.js';
 
 export const widgetMetadata: WidgetMetadata = {
   description: 'HunterAI Dashboard — find and apply for startup credits, programs, and grants',
@@ -29,6 +29,8 @@ interface LocalState {
   showAllOpps: boolean;
   expandedReply: string | null;
   activeTab: TabKey;
+  draftEmail: (EmailDraft & { opportunity: Opportunity }) | null;
+  sendingEmail: boolean;
 }
 
 // ─── Palette (black & white only) ────────────────────────
@@ -78,7 +80,7 @@ function HunterAIDashboardInner() {
     useWidget<Record<string, unknown>, WidgetState>();
 
   const [local, setLocal] = useState<LocalState>({
-    loading: false, applyingId: null, showAllOpps: false, expandedReply: null, activeTab: 'opportunities',
+    loading: false, applyingId: null, showAllOpps: false, expandedReply: null, activeTab: 'opportunities', draftEmail: null, sendingEmail: false,
   });
 
   const opps = mcpState?.opportunities ?? [];
@@ -113,8 +115,21 @@ function HunterAIDashboardInner() {
     const easy = opps.filter(o => o.effort === 'low').slice(0, 5);
     if (!easy.length) { await sendFollowUpMessage('No easy opportunities. Try medium-effort ones?'); return; }
     setLocal(l => ({ ...l, loading: true }));
-    await sendFollowUpMessage(`Apply to these ${easy.length} programs, starting with ${easy[0].program.name}`);
-  }, [opps, sendFollowUpMessage]);
+    const first = easy[0];
+    try {
+      const r = await callTool('draft_email', { opportunity_id: first.id });
+      const draft = r.structuredContent as EmailDraft | undefined;
+      if (draft) {
+        setLocal(l => ({ ...l, draftEmail: { ...draft, opportunity: first }, loading: false }));
+      } else {
+        setLocal(l => ({ ...l, loading: false }));
+        await sendFollowUpMessage(`Apply to these ${easy.length} programs, starting with ${first.program.name}`);
+      }
+    } catch {
+      setLocal(l => ({ ...l, loading: false }));
+      await sendFollowUpMessage(`Apply to these ${easy.length} programs, starting with ${first.program.name}`);
+    }
+  }, [opps, callTool, sendFollowUpMessage]);
 
   const handleApplyOne = useCallback(async (opp: Opportunity) => {
     if (opp.program.type === 'incubator_portal') {
@@ -122,10 +137,49 @@ function HunterAIDashboardInner() {
     }
     setLocal(l => ({ ...l, applyingId: opp.id }));
     try {
-      await callTool('draft_email', { opportunity_id: opp.id });
-      await sendFollowUpMessage(`Show the draft email for ${opp.program.name} and ask if I want to send it`);
-    } finally { setLocal(l => ({ ...l, applyingId: null })); }
+      const r = await callTool('draft_email', { opportunity_id: opp.id });
+      const draft = r.structuredContent as EmailDraft | undefined;
+      if (draft) {
+        setLocal(l => ({ ...l, draftEmail: { ...draft, opportunity: opp }, applyingId: null }));
+      } else {
+        setLocal(l => ({ ...l, applyingId: null }));
+        await sendFollowUpMessage(`Draft an application email for ${opp.program.name} and show it to me`);
+      }
+    } catch {
+      setLocal(l => ({ ...l, applyingId: null }));
+      await sendFollowUpMessage(`Draft an application email for ${opp.program.name}`);
+    }
   }, [callTool, sendFollowUpMessage]);
+
+  const handleSendDraft = useCallback(async () => {
+    const draft = local.draftEmail;
+    if (!draft) return;
+    setLocal(l => ({ ...l, sendingEmail: true }));
+    try {
+      const r = await callTool('send_email', {
+        to: draft.to,
+        subject: draft.subject,
+        body: draft.body,
+        program_id: draft.opportunity.program.id,
+      });
+      const result = r.structuredContent as { sent: boolean; email: SentEmail } | undefined;
+      if (result?.email) {
+        await setMcpState(p => ({
+          ...(p ?? {} as WidgetState),
+          sent_emails: [...(p?.sent_emails ?? []), result.email],
+        }));
+      }
+      setLocal(l => ({ ...l, draftEmail: null, sendingEmail: false }));
+      await sendFollowUpMessage(`Email sent to ${draft.to} for ${draft.opportunity.program.name}! Ready to apply to the next one?`);
+    } catch {
+      setLocal(l => ({ ...l, sendingEmail: false }));
+      await sendFollowUpMessage(`Could not send email. Make sure Gmail is connected at /auth/gmail`);
+    }
+  }, [local.draftEmail, callTool, setMcpState, sendFollowUpMessage]);
+
+  const handleDismissDraft = useCallback(() => {
+    setLocal(l => ({ ...l, draftEmail: null }));
+  }, []);
 
   const handleCheckReplies = useCallback(async () => {
     setLocal(l => ({ ...l, loading: true }));
@@ -195,43 +249,48 @@ function HunterAIDashboardInner() {
     );
   };
 
-  const OppCard = ({ opp }: { opp: Opportunity }) => (
-    <div style={{
-      padding: '14px 16px', borderBottom: `1px solid ${C.g150}`,
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-    }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.black }}>{opp.program.name}</span>
-          {opp.program.verified && <span style={{ fontSize: 10, color: C.g400 }}>Verified</span>}
+  const OppCard = ({ opp }: { opp: Opportunity }) => {
+    const isSent = emails.some(e => e.program_id === opp.program.id);
+    return (
+      <div style={{
+        padding: '14px 16px', borderBottom: `1px solid ${C.g150}`,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.black }}>{opp.program.name}</span>
+            {opp.program.verified && <span style={{ fontSize: 10, color: C.g400 }}>Verified</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+            <span style={{ fontSize: 11, color: C.g500, background: C.g100, padding: '1px 6px', borderRadius: 3 }}>
+              {typeLabels[opp.program.type] ?? 'Program'}
+            </span>
+            <EffortBadge effort={opp.effort} />
+            <span style={{ fontSize: 12, color: C.g500 }}>{opp.program.vendor}</span>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
-          <span style={{ fontSize: 11, color: C.g500, background: C.g100, padding: '1px 6px', borderRadius: 3 }}>
-            {typeLabels[opp.program.type] ?? 'Program'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: C.black, fontFeatureSettings: '"tnum"' }}>
+            {fmtCurrency(opp.potential_value, opp.program.currency)}
           </span>
-          <EffortBadge effort={opp.effort} />
-          <span style={{ fontSize: 12, color: C.g500 }}>{opp.program.vendor}</span>
+          <button
+            onClick={() => !isSent && handleApplyOne(opp)}
+            disabled={isSent || local.applyingId !== null}
+            style={{
+              padding: '6px 14px', border: `1px solid ${isSent ? C.g100 : C.g200}`, borderRadius: 6,
+              background: isSent ? C.g100 : C.white, fontSize: 12, fontWeight: 500,
+              color: isSent ? C.g400 : C.black,
+              cursor: isSent ? 'default' : 'pointer',
+              opacity: local.applyingId === opp.id ? 0.5 : 1,
+              whiteSpace: 'nowrap' as const,
+            }}
+          >
+            {isSent ? 'Sent' : local.applyingId === opp.id ? 'Drafting...' : opp.program.type === 'incubator_portal' ? 'View' : 'Apply'}
+          </button>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: C.black, fontFeatureSettings: '"tnum"' }}>
-          {fmtCurrency(opp.potential_value, opp.program.currency)}
-        </span>
-        <button
-          onClick={() => handleApplyOne(opp)}
-          disabled={local.applyingId !== null}
-          style={{
-            padding: '6px 14px', border: `1px solid ${C.g200}`, borderRadius: 6,
-            background: C.white, fontSize: 12, fontWeight: 500, color: C.black,
-            cursor: 'pointer', opacity: local.applyingId === opp.id ? 0.5 : 1,
-            whiteSpace: 'nowrap' as const,
-          }}
-        >
-          {local.applyingId === opp.id ? 'Drafting...' : opp.program.type === 'incubator_portal' ? 'View' : 'Apply'}
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const OppGroup = ({ label, items }: { label: string; items: Opportunity[] }) => {
     if (!items.length) return null;
@@ -347,6 +406,54 @@ function HunterAIDashboardInner() {
           );
         })}
       </div>
+
+      {/* ── Draft Email Preview ─────────────────────────── */}
+      {local.draftEmail && (
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.g200}`, background: C.g50 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.black }}>Draft Email</span>
+              <span style={{ fontSize: 12, color: C.g400, marginLeft: 8 }}>{local.draftEmail.opportunity.program.name}</span>
+            </div>
+            <button onClick={handleDismissDraft} style={{
+              background: 'none', border: 'none', fontSize: 18, color: C.g400, cursor: 'pointer', lineHeight: 1, padding: '0 4px',
+            }}>{'\u00d7'}</button>
+          </div>
+          <div style={{ background: C.white, border: `1px solid ${C.g200}`, borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.g150}`, display: 'flex', gap: 8 }}>
+              <span style={{ fontSize: 11, color: C.g400, minWidth: 44 }}>To</span>
+              <span style={{ fontSize: 13, color: C.black }}>{local.draftEmail.to}</span>
+            </div>
+            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.g150}`, display: 'flex', gap: 8 }}>
+              <span style={{ fontSize: 11, color: C.g400, minWidth: 44 }}>Subject</span>
+              <span style={{ fontSize: 13, color: C.black }}>{local.draftEmail.subject}</span>
+            </div>
+            <div style={{ padding: '12px 14px', fontSize: 13, color: C.g600, lineHeight: 1.6, whiteSpace: 'pre-wrap' as const }}>
+              {local.draftEmail.body}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button onClick={handleSendDraft} disabled={local.sendingEmail} style={{
+              flex: 1, padding: '10px 14px', border: 'none', borderRadius: 6, background: C.black,
+              color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              opacity: local.sendingEmail ? 0.6 : 1,
+            }}>
+              {local.sendingEmail ? 'Sending...' : 'Send Email'}
+            </button>
+            <button onClick={() => {
+              const d = local.draftEmail!;
+              sendFollowUpMessage(`I want to edit this email draft for ${d.opportunity.program.name} before sending. Current draft: To: ${d.to}, Subject: ${d.subject}`);
+            }} disabled={local.sendingEmail} style={{
+              padding: '10px 14px', border: `1px solid ${C.g200}`, borderRadius: 6,
+              background: C.white, color: C.g600, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}>Edit</button>
+            <button onClick={handleDismissDraft} disabled={local.sendingEmail} style={{
+              padding: '10px 14px', border: `1px solid ${C.g200}`, borderRadius: 6,
+              background: C.white, color: C.g400, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Content area ─────────────────────────────────── */}
       <div style={{ padding: '16px 20px 20px' }}>
