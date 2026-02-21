@@ -28,7 +28,7 @@ interface LocalState {
   applyingId: string | null;
   showAllOpps: boolean;
   expandedReply: string | null;
-  activeView: 'opportunities' | 'applied' | 'replies';
+  activeView: 'opportunities' | 'applied' | 'replies' | 'subscriptions';
   draftEmail: (EmailDraft & { opportunity: Opportunity }) | null;
   sendingEmail: boolean;
   showFullDashboard: boolean;
@@ -110,6 +110,11 @@ function HunterAIDashboardInner() {
   const easyOpps = opps.filter(o => o.effort === 'low');
   const mediumOpps = opps.filter(o => o.effort === 'medium');
   const hardOpps = opps.filter(o => o.effort === 'high');
+
+  // Spend context
+  const totalMonthlySpend = subs.reduce((s, x) => s + x.monthly_cost, 0);
+  const directMatchOpps = opps.filter(o => o.matched_subscription);
+  const directMatchValue = directMatchOpps.reduce((s, o) => s + o.potential_value, 0);
 
   // Journey phase
   const journeyPhase: JourneyPhase = (() => {
@@ -549,9 +554,10 @@ function HunterAIDashboardInner() {
   // FULL DASHBOARD — Opportunities found (or applied/replies)
   // ═══════════════════════════════════════════════════════
   const pipelineSteps = [
-    { key: 'opportunities' as const, label: 'Found', value: opps.length, done: opps.length > 0 },
+    { key: 'opportunities' as const, label: 'Opportunities', value: opps.length, done: opps.length > 0 },
     { key: 'applied' as const, label: 'Applied', value: emails.length, done: emails.length > 0 },
     { key: 'replies' as const, label: 'Replies', value: replies.length, done: replies.length > 0 },
+    ...(subs.length > 0 ? [{ key: 'subscriptions' as const, label: 'Subscriptions', value: subs.length, done: true }] : []),
   ];
 
   return (
@@ -567,7 +573,36 @@ function HunterAIDashboardInner() {
           <div style={{ fontSize: 34, fontWeight: 700, color: C.primary, letterSpacing: '-0.03em', lineHeight: 1, fontFeatureSettings: '"tnum"' }}>
             {totalValue > 0 ? `$${(totalValue / 1000).toFixed(totalValue % 1000 === 0 ? 0 : 1)}K` : '$0'}
           </div>
-          <div style={{ fontSize: 13, color: C.secondary, marginTop: 4 }}>potential savings found</div>
+          <div style={{ fontSize: 13, color: C.secondary, marginTop: 4 }}>total credits available</div>
+
+          {/* Spend vs savings context */}
+          {subs.length > 0 && opps.length > 0 && (
+            <div style={{
+              marginTop: 14, padding: '12px 14px', background: C.surface,
+              border: `1px solid ${C.border}`, borderRadius: 8,
+              display: 'flex', gap: 0,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: C.tertiary, textTransform: 'uppercase' as const, letterSpacing: '0.05em', fontWeight: 500 }}>Your spend</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.primary, fontFeatureSettings: '"tnum"', marginTop: 2 }}>
+                  {totalMonthlySpend.toLocaleString()}/mo
+                </div>
+                <div style={{ fontSize: 11, color: C.tertiary, marginTop: 1 }}>
+                  across {subs.length} tools
+                </div>
+              </div>
+              <div style={{ width: 1, background: C.border, margin: '0 14px' }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: C.tertiary, textTransform: 'uppercase' as const, letterSpacing: '0.05em', fontWeight: 500 }}>Direct matches</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.accentText, fontFeatureSettings: '"tnum"', marginTop: 2 }}>
+                  {fmtCurrency(directMatchValue)}
+                </div>
+                <div style={{ fontSize: 11, color: C.tertiary, marginTop: 1 }}>
+                  {directMatchOpps.length} credits for tools you use
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -607,8 +642,8 @@ function HunterAIDashboardInner() {
           }}>
             <ActionCard
               primary
-              title={`Apply to ${easyOpps.length} easy ${easyOpps.length === 1 ? 'program' : 'programs'}`}
-              desc="We'll draft personalized emails. You review before sending."
+              title={`${easyOpps.length} easy applications ready`}
+              desc={directMatchOpps.length > 0 ? `${directMatchOpps.length} match tools you already pay for.` : "We'll draft personalized emails. You review before sending."}
               action="Start applying"
               onClick={handleApplyAll}
               disabled={local.loading}
@@ -729,6 +764,49 @@ function HunterAIDashboardInner() {
             </div>
           </>
         )
+      )}
+
+      {/* ── Subscriptions view ───────────────────────── */}
+      {local.activeView === 'subscriptions' && !local.draftEmail && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.tertiary, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+              Detected ({subs.length})
+            </span>
+            <span style={{ fontSize: 12, color: C.secondary, fontWeight: 500, fontFeatureSettings: '"tnum"' }}>
+              {totalMonthlySpend.toLocaleString()}/mo
+            </span>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', background: C.elevated }}>
+            {subs.map((sub, i) => {
+              const matchedOpp = opps.find(o => o.matched_subscription?.toLowerCase() === sub.vendor.toLowerCase());
+              return (
+                <div key={sub.id} style={{
+                  padding: '12px 14px', borderBottom: i < subs.length - 1 ? `1px solid ${C.borderSub}` : 'none',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.primary }}>{sub.vendor}</div>
+                    <div style={{ fontSize: 11, color: C.tertiary }}>{sub.category}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <span style={{ fontSize: 13, color: C.secondary, fontFeatureSettings: '"tnum"' }}>
+                      {sub.monthly_cost.toLocaleString()}/mo
+                    </span>
+                    {matchedOpp && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 500, color: C.accentText, background: C.accentSoft,
+                        padding: '2px 6px', borderRadius: 4,
+                      }}>
+                        {fmtCurrency(matchedOpp.potential_value)} credit
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* ── Replies view ─────────────────────────────── */}
