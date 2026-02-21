@@ -1,0 +1,298 @@
+import { z } from 'zod';
+import { google } from 'googleapis';
+import { state, isDemoMode } from '../state.js';
+import { createOAuth2Client } from './send-email.js';
+import type { ActivityEntry, ActivityType, DigestPreferences } from '../types.js';
+
+// ── Helpers ──────────────────────────────────────────────────
+
+function getActivitiesSince(hours: number): ActivityEntry[] {
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  return state.activity_log.filter(a => a.timestamp >= since);
+}
+
+function groupByType(entries: ActivityEntry[]): Record<string, ActivityEntry[]> {
+  const groups: Record<string, ActivityEntry[]> = {};
+  for (const e of entries) {
+    (groups[e.type] ??= []).push(e);
+  }
+  return groups;
+}
+
+const TYPE_LABELS: Record<ActivityType, string> = {
+  opportunity_found: 'Opportunities Found',
+  email_sent: 'Emails Sent',
+  email_failed: 'Emails Failed',
+  form_filled: 'Forms Filled',
+  reply_received: 'Replies Received',
+  reply_sent: 'Replies Sent',
+  profile_saved: 'Profile Updates',
+  statement_analyzed: 'Statements Analyzed',
+};
+
+function buildStats(entries: ActivityEntry[]) {
+  const groups = groupByType(entries);
+  return {
+    emails_sent: (groups['email_sent'] ?? []).length,
+    emails_failed: (groups['email_failed'] ?? []).length,
+    replies: (groups['reply_received'] ?? []).length,
+    forms_filled: (groups['form_filled'] ?? []).length,
+    opportunities: (groups['opportunity_found'] ?? []).length,
+    total_activities: entries.length,
+  };
+}
+
+// ── Demo synthetic data ──────────────────────────────────────
+
+function getSyntheticSections() {
+  return {
+    sections: [
+      { type: 'opportunity_found', label: 'Opportunities Found', items: ['Found 18 opportunities worth $125,000'] },
+      { type: 'email_sent', label: 'Emails Sent', items: ['Sent application to AWS Activate', 'Sent application to Anthropic Credits'] },
+      { type: 'reply_received', label: 'Replies Received', items: ['Reply from Vercel: approved for $3,000 credits'] },
+      { type: 'form_filled', label: 'Forms Filled', items: ['Filled Stripe Atlas application (5 fields)'] },
+    ],
+    stats: { emails_sent: 5, emails_failed: 0, replies: 2, forms_filled: 3, opportunities: 18, total_activities: 28 },
+    pipeline_value: 125000,
+  };
+}
+
+// ── HTML email template ──────────────────────────────────────
+
+function buildHtmlEmail(sections: { type: string; label: string; items: string[] }[], stats: ReturnType<typeof buildStats>, profileName: string, pipelineValue: number): string {
+  const sectionRows = sections.map(s => `
+    <tr><td style="padding:16px 24px 8px;font-size:14px;font-weight:700;color:#1a1a2e;border-bottom:1px solid #f0f0f0">${s.label}</td></tr>
+    ${s.items.map(item => `<tr><td style="padding:4px 24px 4px 40px;font-size:13px;color:#555">&#8226; ${item}</td></tr>`).join('')}
+  `).join('');
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 0">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+  <tr><td style="background:#1a1a2e;padding:24px;text-align:center">
+    <div style="font-size:20px;font-weight:700;color:#fff">HunterAI Daily Digest</div>
+    <div style="font-size:12px;color:#aaa;margin-top:4px">${profileName} &middot; ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+  </td></tr>
+  <tr><td style="padding:20px 24px">
+    <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="text-align:center;padding:12px;background:#f0fdf4;border-radius:8px;width:33%">
+        <div style="font-size:28px;font-weight:700;color:#1a1a2e">${stats.emails_sent}</div>
+        <div style="font-size:11px;color:#888">Apps Sent</div>
+      </td>
+      <td style="width:8px"></td>
+      <td style="text-align:center;padding:12px;background:#eff6ff;border-radius:8px;width:33%">
+        <div style="font-size:28px;font-weight:700;color:#1a1a2e">${stats.replies}</div>
+        <div style="font-size:11px;color:#888">Replies</div>
+      </td>
+      <td style="width:8px"></td>
+      <td style="text-align:center;padding:12px;background:#fef3c7;border-radius:8px;width:33%">
+        <div style="font-size:28px;font-weight:700;color:#1a1a2e">$${(pipelineValue / 1000).toFixed(0)}K</div>
+        <div style="font-size:11px;color:#888">Pipeline</div>
+      </td>
+    </tr>
+    </table>
+  </td></tr>
+  ${sectionRows}
+  <tr><td style="padding:20px 24px;text-align:center;font-size:12px;color:#aaa;border-top:1px solid #f0f0f0;margin-top:16px">
+    Total activities: ${stats.total_activities} &middot; Generated by HunterAI
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+}
+
+function buildPlainText(sections: { type: string; label: string; items: string[] }[], stats: ReturnType<typeof buildStats>, profileName: string): string {
+  let text = `HunterAI Daily Digest - ${profileName}\n${new Date().toLocaleDateString()}\n\n`;
+  text += `Apps Sent: ${stats.emails_sent} | Replies: ${stats.replies} | Forms: ${stats.forms_filled}\n\n`;
+  for (const s of sections) {
+    text += `--- ${s.label} ---\n`;
+    for (const item of s.items) text += `  - ${item}\n`;
+    text += '\n';
+  }
+  text += `Total activities: ${stats.total_activities}\n`;
+  return text;
+}
+
+// ── Send digest email via Gmail ──────────────────────────────
+
+async function sendDigestEmail(to: string, html: string, plain: string): Promise<void> {
+  const boundary = `boundary_${Date.now()}`;
+  const raw = [
+    `To: ${to}`,
+    `Subject: HunterAI Daily Digest - ${new Date().toLocaleDateString()}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset=utf-8',
+    '',
+    plain,
+    `--${boundary}`,
+    'Content-Type: text/html; charset=utf-8',
+    '',
+    html,
+    `--${boundary}--`,
+  ].join('\r\n');
+
+  const client = createOAuth2Client();
+  const gmail = google.gmail({ version: 'v1', auth: client });
+  await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw: Buffer.from(raw).toString('base64url') },
+  });
+}
+
+// ── Tool: daily_digest ───────────────────────────────────────
+
+export async function dailyDigestTool(input: {
+  since_hours?: number;
+  send_email?: boolean;
+  recipient_email?: string;
+  demo_mode?: boolean;
+}) {
+  const sinceHours = input.since_hours ?? 24;
+  const activities = getActivitiesSince(sinceHours);
+  const profileName = state.profile?.name || 'Your Startup';
+  const pipelineValue = state.opportunities.reduce((s, o) => s + o.potential_value, 0);
+
+  let sections: { type: string; label: string; items: string[] }[];
+  let stats: ReturnType<typeof buildStats>;
+
+  if (activities.length === 0 && isDemoMode(input.demo_mode)) {
+    const synthetic = getSyntheticSections();
+    sections = synthetic.sections;
+    stats = synthetic.stats;
+  } else {
+    const groups = groupByType(activities);
+    sections = Object.entries(groups).map(([type, entries]) => ({
+      type,
+      label: TYPE_LABELS[type as ActivityType] || type,
+      items: entries.map(e => e.summary),
+    }));
+    stats = buildStats(activities);
+  }
+
+  const html = buildHtmlEmail(sections, stats, profileName, pipelineValue);
+  const plain = buildPlainText(sections, stats, profileName);
+
+  let emailSent = false;
+  if (input.send_email) {
+    const recipient = input.recipient_email || state.digest_preferences?.recipient_email || state.profile?.contact_email;
+    if (!recipient) {
+      return {
+        sections, stats, period_hours: sinceHours,
+        email_sent: false, error: 'No recipient email. Provide recipient_email or save a profile with contact_email.',
+        suggestions: [{ label: '📧 Try again with email', sub: '' }],
+      };
+    }
+
+    if (isDemoMode(input.demo_mode)) {
+      emailSent = true;
+    } else {
+      if (!state.gmail_tokens.refresh_token) {
+        return {
+          sections, stats, period_hours: sinceHours,
+          email_sent: false, error: 'Gmail not connected. Visit /auth/gmail to authenticate.',
+          suggestions: [{ label: '🔗 Connect Gmail', sub: '' }],
+        };
+      }
+      await sendDigestEmail(recipient, html, plain);
+      emailSent = true;
+    }
+  }
+
+  return {
+    sections, stats, period_hours: sinceHours,
+    email_sent: emailSent,
+    suggestions: [
+      !input.send_email ? { label: '📧 Email this digest', sub: '', primary: true } : null,
+      { label: '⏰ Enable daily digest', sub: '' },
+      { label: '📊 Show dashboard', sub: '' },
+    ].filter(Boolean),
+  };
+}
+
+export const dailyDigestSchema = z.object({
+  since_hours: z.number().optional().describe('Hours to look back (default 24)'),
+  send_email: z.boolean().optional().describe('Send digest via Gmail'),
+  recipient_email: z.string().email().optional().describe('Override recipient email'),
+  demo_mode: z.boolean().optional(),
+});
+
+// ── Tool: configure_digest ───────────────────────────────────
+
+export async function configureDigestTool(input: {
+  enabled: boolean;
+  send_time_utc?: string;
+  recipient_email?: string;
+}) {
+  if (input.enabled) {
+    const recipient = input.recipient_email || state.profile?.contact_email;
+    if (!recipient) {
+      return { configured: false, error: 'No recipient email. Provide recipient_email or save a profile with contact_email.' };
+    }
+    state.digest_preferences = {
+      enabled: true,
+      send_time_utc: input.send_time_utc || '09:00',
+      recipient_email: recipient,
+    };
+    console.log(`[Digest] Scheduled daily at ${state.digest_preferences.send_time_utc} UTC to ${recipient}`);
+    return {
+      configured: true,
+      preferences: state.digest_preferences,
+      message: `Daily digest enabled at ${state.digest_preferences.send_time_utc} UTC to ${recipient}`,
+    };
+  } else {
+    if (state.digest_preferences) {
+      state.digest_preferences.enabled = false;
+    }
+    console.log('[Digest] Daily digest disabled');
+    return { configured: true, message: 'Daily digest disabled' };
+  }
+}
+
+export const configureDigestSchema = z.object({
+  enabled: z.boolean().describe('Enable or disable daily digest'),
+  send_time_utc: z.string().optional().describe('Send time in HH:MM UTC (default 09:00)'),
+  recipient_email: z.string().email().optional().describe('Recipient email address'),
+});
+
+// ── Scheduler ────────────────────────────────────────────────
+
+let digestSchedulerActive = false;
+
+export function startDigestScheduler(): void {
+  if (digestSchedulerActive) return;
+  digestSchedulerActive = true;
+  console.log('[Digest] Scheduler started (checks every 15 min)');
+
+  setInterval(async () => {
+    const prefs = state.digest_preferences;
+    if (!prefs?.enabled) return;
+
+    const now = new Date();
+    const [targetH, targetM] = prefs.send_time_utc.split(':').map(Number);
+    const currentH = now.getUTCHours();
+    const currentM = now.getUTCMinutes();
+    const diffMin = Math.abs((currentH * 60 + currentM) - (targetH * 60 + targetM));
+    if (diffMin > 15) return;
+
+    const today = now.toISOString().slice(0, 10);
+    if (prefs.last_sent_at?.startsWith(today)) return;
+
+    try {
+      console.log('[Digest] Sending scheduled digest...');
+      await dailyDigestTool({
+        send_email: true,
+        recipient_email: prefs.recipient_email,
+        demo_mode: isDemoMode(),
+      });
+      prefs.last_sent_at = now.toISOString();
+      console.log('[Digest] Scheduled digest sent');
+    } catch (err) {
+      console.warn('[Digest] Scheduled send failed:', err instanceof Error ? err.message : String(err));
+    }
+  }, 15 * 60 * 1000);
+}

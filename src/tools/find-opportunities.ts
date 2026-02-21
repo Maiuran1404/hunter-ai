@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { state, isDemoMode } from '../state.js';
+import { state, isDemoMode, logActivity } from '../state.js';
 import { randomUUID } from 'crypto';
 import type { DiscountProgram, Opportunity } from '../types.js';
 
@@ -11,7 +11,21 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 let cachedPrograms: DiscountProgram[] | null = null;
 function loadPrograms(): DiscountProgram[] {
   if (!cachedPrograms) {
-    cachedPrograms = JSON.parse(readFileSync(join(__dirname, '../../src/data/programs.json'), 'utf8'));
+    // Try multiple paths to work in both dev (src/tools/) and prod (dist/src/tools/)
+    const candidates = [
+      join(__dirname, '../data/programs.json'),       // dev: src/tools/../data/
+      join(__dirname, '../../src/data/programs.json'), // dev fallback
+      join(process.cwd(), 'src/data/programs.json'),  // prod: from project root
+    ];
+    let loaded = false;
+    for (const p of candidates) {
+      try {
+        cachedPrograms = JSON.parse(readFileSync(p, 'utf8'));
+        loaded = true;
+        break;
+      } catch { /* try next path */ }
+    }
+    if (!loaded) throw new Error('Could not find programs.json');
   }
   return cachedPrograms!;
 }
@@ -34,7 +48,15 @@ function meetsEligibility(p: DiscountProgram, profile: NonNullable<typeof state.
   return true;
 }
 
-export async function findOpportunitiesTool(_input: Record<string, never>) {
+export async function findOpportunitiesTool(input: { demo_mode?: boolean }) {
+  if (!state.profile && isDemoMode(input.demo_mode)) {
+    // Auto-populate a demo profile so users can try the tool without setup
+    state.profile = {
+      name: 'Demo Startup', stage: 'seed', team_size: 5, monthly_arr: 1000,
+      incubators: ['Antler'], geography: 'Norway', tech_stack: ['React', 'Node.js'],
+      contact_email: 'founder@demo.com', founder_name: 'Demo Founder',
+    };
+  }
   if (!state.profile) throw new Error('No company profile. Call save_company_profile first.');
   const programs = loadPrograms();
   const opps: Opportunity[] = [];
@@ -65,6 +87,7 @@ export async function findOpportunitiesTool(_input: Record<string, never>) {
 
   opps.sort((a, b) => b.potential_value - a.potential_value);
   state.opportunities = opps;
+  logActivity('opportunity_found', `Found ${opps.length} opportunities worth $${opps.reduce((s, o) => s + o.potential_value, 0).toLocaleString()}`, { count: opps.length });
   const totalValue = opps.reduce((s, o) => s + o.potential_value, 0);
   const portalCount = opps.filter(o => o.program.type === 'incubator_portal').length;
 
@@ -81,4 +104,6 @@ export async function findOpportunitiesTool(_input: Record<string, never>) {
   };
 }
 
-export const findOpportunitiesSchema = z.object({});
+export const findOpportunitiesSchema = z.object({
+  demo_mode: z.boolean().optional(),
+});

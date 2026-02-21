@@ -101,6 +101,26 @@ export interface GmailTokens {
   access_token?: string; refresh_token?: string; expiry_date?: number;
 }
 
+export type ActivityType =
+  | 'opportunity_found' | 'email_sent' | 'email_failed'
+  | 'form_filled' | 'reply_received' | 'reply_sent'
+  | 'profile_saved' | 'statement_analyzed';
+
+export interface ActivityEntry {
+  id: string;
+  type: ActivityType;
+  timestamp: string;
+  summary: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface DigestPreferences {
+  enabled: boolean;
+  send_time_utc: string;
+  recipient_email: string;
+  last_sent_at?: string;
+}
+
 export interface AppState {
   subscriptions: Subscription[];
   profile: CompanyProfile | null;
@@ -108,4 +128,6 @@ export interface AppState {
   sent_emails: SentEmail[];
   gmail_tokens: GmailTokens;
   reply_poll_active: boolean;
+  activity_log: ActivityEntry[];
+  digest_preferences: DigestPreferences | null;
 }

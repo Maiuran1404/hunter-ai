@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { state, isDemoMode } from '../state.js';
+import { state, isDemoMode, mergeSubscriptions } from '../state.js';
 import { loadPuzzleTokens, savePuzzleTokens } from '../token-store.js';
 import { randomUUID } from 'crypto';
 import type { Subscription } from '../types.js';
 
 const PUZZLE_CLIENT_ID = process.env.PUZZLE_CLIENT_ID || '';
 const PUZZLE_CLIENT_SECRET = process.env.PUZZLE_CLIENT_SECRET || '';
-const PUZZLE_REDIRECT_URI = process.env.PUZZLE_REDIRECT_URI || 'http://localhost:3001/auth/puzzle/callback';
+const PUZZLE_REDIRECT_URI = process.env.PUZZLE_REDIRECT_URI || `http://localhost:${process.env.PORT || '3001'}/auth/puzzle/callback`;
 const PUZZLE_API_KEY = process.env.PUZZLE_API_KEY || '';
 
 export function getPuzzleAuthUrl(): string {
@@ -30,7 +30,10 @@ export async function handlePuzzleCallback(code: string): Promise<void> {
   savePuzzleTokens(tokens);
 }
 
-export async function connectPuzzleApiKeyTool(input: { api_key: string }) {
+export async function connectPuzzleApiKeyTool(input: { api_key: string; demo_mode?: boolean }) {
+  if (isDemoMode(input.demo_mode)) {
+    return { connected: true, message: 'Puzzle API key saved (demo). You can now pull real transactions.' };
+  }
   // Test the key
   const res = await fetch('https://api.puzzle.io/v1/me', {
     headers: { Authorization: `Bearer ${input.api_key}` },
@@ -40,8 +43,8 @@ export async function connectPuzzleApiKeyTool(input: { api_key: string }) {
   return { connected: true, message: 'Puzzle API key saved. You can now pull real transactions.' };
 }
 
-export async function pullPuzzleTransactionsTool(_input: Record<string, never>) {
-  if (isDemoMode()) {
+export async function pullPuzzleTransactionsTool(input: { demo_mode?: boolean }) {
+  if (isDemoMode(input.demo_mode)) {
     const demo: Subscription[] = [
       { id: randomUUID(), vendor: 'AWS', normalized_name: 'aws', monthly_cost: 2400, category: 'infrastructure', confidence: 0.98, source: 'csv' },
       { id: randomUUID(), vendor: 'Anthropic', normalized_name: 'anthropic', monthly_cost: 1800, category: 'infrastructure', confidence: 0.98, source: 'csv' },
@@ -49,7 +52,7 @@ export async function pullPuzzleTransactionsTool(_input: Record<string, never>) 
       { id: randomUUID(), vendor: 'Linear', normalized_name: 'linear', monthly_cost: 80, category: 'productivity', confidence: 0.9, source: 'csv' },
       { id: randomUUID(), vendor: 'Figma', normalized_name: 'figma', monthly_cost: 150, category: 'design', confidence: 0.9, source: 'csv' },
     ];
-    state.subscriptions = demo;
+    mergeSubscriptions(demo);
     return {
       source: 'puzzle_demo', found: demo.length,
       total_monthly: demo.reduce((s, x) => s + x.monthly_cost, 0),
@@ -89,7 +92,7 @@ export async function pullPuzzleTransactionsTool(_input: Record<string, never>) 
       monthly_cost: Math.round(avg), category: 'other', confidence: 0.85, source: 'csv' });
   }
 
-  state.subscriptions = subs;
+  mergeSubscriptions(subs);
   return {
     source: 'puzzle_live', found: subs.length,
     total_monthly: subs.reduce((s, x) => s + x.monthly_cost, 0),
@@ -100,5 +103,8 @@ export async function pullPuzzleTransactionsTool(_input: Record<string, never>) 
 
 export const connectPuzzleApiKeySchema = z.object({
   api_key: z.string().describe('Your Puzzle.io API key'),
+  demo_mode: z.boolean().optional(),
 });
-export const pullPuzzleTransactionsSchema = z.object({});
+export const pullPuzzleTransactionsSchema = z.object({
+  demo_mode: z.boolean().optional(),
+});

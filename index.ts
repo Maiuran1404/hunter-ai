@@ -9,6 +9,7 @@ import { fillFormSchema, fillFormTool } from './src/tools/fill-form.js';
 import { checkRepliesSchema, checkRepliesTool, sendReplySchema, sendReplyTool, startReplyPolling } from './src/tools/check-replies.js';
 import { saveProfileSchema, saveProfileTool } from './src/tools/save-profile.js';
 import { connectPuzzleApiKeySchema, connectPuzzleApiKeyTool, pullPuzzleTransactionsSchema, pullPuzzleTransactionsTool, getPuzzleAuthUrl, handlePuzzleCallback } from './src/tools/puzzle.js';
+import { dailyDigestSchema, dailyDigestTool, configureDigestSchema, configureDigestTool, startDigestScheduler } from './src/tools/daily-digest.js';
 import { loadPuzzleTokens } from './src/token-store.js';
 import { getGoogleAuthUrl as getGoogleLoginUrl, handleGoogleCallback as handleGoogleLoginCallback, getSessionFromRequest, LOGIN_PAGE } from './src/auth.js';
 import { state } from './src/state.js';
@@ -72,10 +73,18 @@ server.tool({
   name: 'draft_email',
   description: 'Draft a personalized application email for a specific program',
   schema: draftEmailSchema,
+  widget: {
+    name: 'hunterai-dashboard',
+    invoking: 'Drafting email...',
+    invoked: 'Email drafted',
+  },
 }, async (input) => {
   try {
     const result = await draftEmailTool(input);
-    return text(JSON.stringify(result));
+    return widget({
+      props: result,
+      output: text(`Drafted email to ${result.to} for ${result.vendor}`),
+    });
   } catch (err) {
     return text(`Error drafting email: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -108,10 +117,18 @@ server.tool({
   name: 'fill_form',
   description: 'Auto-fill a program application form using Playwright. Shows preview before submitting.',
   schema: fillFormSchema,
+  widget: {
+    name: 'hunterai-dashboard',
+    invoking: 'Filling form...',
+    invoked: 'Form filled',
+  },
 }, async (input) => {
   try {
     const result = await fillFormTool(input);
-    return text(JSON.stringify(result));
+    return widget({
+      props: result,
+      output: text(`Form fill ${result.status}: ${result.fields_filled.length} fields filled`),
+    });
   } catch (err) {
     return text(`Error filling form: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -144,10 +161,18 @@ server.tool({
   name: 'send_reply',
   description: 'Send the AI-drafted or custom reply to a vendor',
   schema: sendReplySchema,
+  widget: {
+    name: 'hunterai-dashboard',
+    invoking: 'Sending reply...',
+    invoked: 'Reply sent',
+  },
 }, async (input) => {
   try {
     const result = await sendReplyTool(input);
-    return text(JSON.stringify(result));
+    return widget({
+      props: result,
+      output: text(result.message),
+    });
   } catch (err) {
     return text(`Error sending reply: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -180,10 +205,18 @@ server.tool({
   name: 'connect_puzzle_api_key',
   description: 'Save your Puzzle.io API key to pull real transaction data',
   schema: connectPuzzleApiKeySchema,
+  widget: {
+    name: 'hunterai-dashboard',
+    invoking: 'Connecting Puzzle...',
+    invoked: 'Puzzle connected',
+  },
 }, async (input) => {
   try {
     const result = await connectPuzzleApiKeyTool(input);
-    return text(JSON.stringify(result));
+    return widget({
+      props: result,
+      output: text(result.message),
+    });
   } catch (err) {
     return text(`Error connecting Puzzle: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -208,6 +241,42 @@ server.tool({
     });
   } catch (err) {
     return text(`Error pulling Puzzle transactions: ${err instanceof Error ? err.message : String(err)}`);
+  }
+});
+
+// ── Tool: daily_digest ───────────────────────────────────────
+server.tool({
+  name: 'daily_digest',
+  description: 'Generate a daily activity digest report and optionally email it',
+  schema: dailyDigestSchema,
+  widget: {
+    name: 'hunterai-dashboard',
+    invoking: 'Building digest...',
+    invoked: 'Digest ready',
+  },
+}, async (input) => {
+  try {
+    const result = await dailyDigestTool(input);
+    return widget({
+      props: result,
+      output: text(`Digest: ${result.stats.total_activities} activities, ${result.stats.emails_sent} emails sent${result.email_sent ? ' (emailed)' : ''}`),
+    });
+  } catch (err) {
+    return text(`Error building digest: ${err instanceof Error ? err.message : String(err)}`);
+  }
+});
+
+// ── Tool: configure_digest ───────────────────────────────────
+server.tool({
+  name: 'configure_digest',
+  description: 'Enable or disable automatic daily digest emails',
+  schema: configureDigestSchema,
+}, async (input) => {
+  try {
+    const result = await configureDigestTool(input);
+    return text(result.message || (result.configured ? 'Digest configured' : result.error || 'Configuration failed'));
+  } catch (err) {
+    return text(`Error configuring digest: ${err instanceof Error ? err.message : String(err)}`);
   }
 });
 
@@ -319,4 +388,5 @@ server.listen(PORT).then(() => {
   ║  Run: npx @mcp-use/cli deploy            ║
   ╚══════════════════════════════════════════╝`);
   startReplyPolling(24 * 60 * 60 * 1000);
+  startDigestScheduler();
 });

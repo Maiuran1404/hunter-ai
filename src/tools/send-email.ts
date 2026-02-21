@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { google } from 'googleapis';
-import { state, isDemoMode, saveTokens } from '../state.js';
+import { state, isDemoMode, saveTokens, logActivity } from '../state.js';
 import { randomUUID } from 'crypto';
 import type { SentEmail } from '../types.js';
 
@@ -50,10 +50,11 @@ export async function sendEmailTool(input: {
   body: string;
   program_id: string;
   thread_id?: string;
+  demo_mode?: boolean;
 }): Promise<{ sent: boolean; email: SentEmail; suggestions: unknown[] }> {
   const emailId = randomUUID();
 
-  if (isDemoMode()) {
+  if (isDemoMode(input.demo_mode)) {
     const sent: SentEmail = {
       id: emailId,
       gmail_message_id: `demo-msg-${emailId.slice(0, 8)}`,
@@ -66,6 +67,7 @@ export async function sendEmailTool(input: {
       status: 'sent',
     };
     state.sent_emails.push(sent);
+    logActivity('email_sent', `Sent email to ${input.to} for program ${input.program_id} (demo)`, { to: input.to, program_id: input.program_id });
     return {
       sent: true, email: sent,
       suggestions: [
@@ -97,6 +99,7 @@ export async function sendEmailTool(input: {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logActivity('email_failed', `Failed to send email to ${input.to}: ${msg}`, { to: input.to, program_id: input.program_id, error: msg });
     throw new Error(`Gmail send failed: ${msg}`);
   }
 
@@ -112,6 +115,7 @@ export async function sendEmailTool(input: {
     status: 'sent',
   };
   state.sent_emails.push(sent);
+  logActivity('email_sent', `Sent email to ${input.to} for program ${input.program_id}`, { to: input.to, program_id: input.program_id });
 
   return {
     sent: true, email: sent,
@@ -128,4 +132,5 @@ export const sendEmailSchema = z.object({
   body: z.string(),
   program_id: z.string(),
   thread_id: z.string().optional(),
+  demo_mode: z.boolean().optional(),
 });

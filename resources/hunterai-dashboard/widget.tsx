@@ -23,7 +23,7 @@ interface WidgetState {
 
 interface LocalState {
   loading: boolean;
-  activeTab: 'opportunities' | 'applied' | 'replies';
+  activeTab: 'opportunities' | 'applied' | 'replies' | 'digest';
 }
 
 // ─── Main Widget ──────────────────────────────────────────────
@@ -167,12 +167,13 @@ function HunterAIDashboardInner() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-        {(['opportunities', 'applied', 'replies'] as const).map(tab => (
+        {(['opportunities', 'applied', 'replies', 'digest'] as const).map(tab => (
           <button key={tab} onClick={() => setLocal(l => ({ ...l, activeTab: tab }))}
             style={{ ...btn(local.activeTab === tab), padding: '6px 14px', fontSize: 12 }}>
             {tab === 'opportunities' ? `💡 Opportunities (${opportunities.length})` :
              tab === 'applied' ? `📨 Applied (${sent_emails.length})` :
-             `💬 Replies (${sent_emails.filter(e => e.reply).length})`}
+             tab === 'replies' ? `💬 Replies (${sent_emails.filter(e => e.reply).length})` :
+             '📋 Digest'}
           </button>
         ))}
       </div>
@@ -264,6 +265,53 @@ function HunterAIDashboardInner() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Digest tab */}
+      {local.activeTab === 'digest' && (
+        <div>
+          <div style={card}>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Daily Digest</div>
+            <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+              Generate a summary of your recent HunterAI activity or schedule daily email reports.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              <button style={btn(true)} onClick={async () => {
+                setLocal(l => ({ ...l, loading: true }));
+                try { await callTool('daily_digest', { send_email: false }); }
+                catch { /* tool error */ }
+                setLocal(l => ({ ...l, loading: false }));
+              }} disabled={local.loading}>
+                📋 Generate Digest
+              </button>
+              <button style={btn()} onClick={async () => {
+                setLocal(l => ({ ...l, loading: true }));
+                try { await callTool('daily_digest', { send_email: true }); }
+                catch { /* tool error */ }
+                setLocal(l => ({ ...l, loading: false }));
+              }} disabled={local.loading}>
+                📧 Generate & Email
+              </button>
+            </div>
+            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Auto-Schedule</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button style={btn()} onClick={async () => {
+                  try { await callTool('configure_digest', { enabled: true }); }
+                  catch { /* tool error */ }
+                }} disabled={local.loading}>
+                  ⏰ Enable Daily at 9AM UTC
+                </button>
+                <button style={btn()} onClick={async () => {
+                  try { await callTool('configure_digest', { enabled: false }); }
+                  catch { /* tool error */ }
+                }} disabled={local.loading}>
+                  🔕 Disable
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

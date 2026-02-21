@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { state } from '../state.js';
+import { state, logActivity } from '../state.js';
 import type { CompanyProfile } from '../types.js';
 
 interface SaveProfileInput {
@@ -28,6 +28,7 @@ export async function saveProfileTool(input: SaveProfileInput) {
   };
   const existing = state.profile || defaults;
   state.profile = { ...defaults, ...existing, ...input } as CompanyProfile;
+  logActivity('profile_saved', `Profile saved for ${state.profile.name || 'company'}`, { name: state.profile.name });
   return {
     saved: true, profile: state.profile,
     suggestions: [

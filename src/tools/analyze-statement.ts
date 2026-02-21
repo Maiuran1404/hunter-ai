@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import Anthropic from '@anthropic-ai/sdk';
-import { state, isDemoMode } from '../state.js';
+import { state, isDemoMode, logActivity, mergeSubscriptions } from '../state.js';
 import { randomUUID } from 'crypto';
 import type { Subscription } from '../types.js';
 
@@ -9,8 +9,9 @@ const anthropic = new Anthropic();
 export async function analyzeStatementTool(input: {
   pdf_base64?: string;
   filename?: string;
+  demo_mode?: boolean;
 }) {
-  if (isDemoMode()) {
+  if (isDemoMode(input.demo_mode)) {
     const demo: Subscription[] = [
       { id: randomUUID(), vendor: 'AWS', normalized_name: 'aws', monthly_cost: 2400, category: 'infrastructure', confidence: 0.95, source: 'demo' },
       { id: randomUUID(), vendor: 'Anthropic', normalized_name: 'anthropic', monthly_cost: 1800, category: 'infrastructure', confidence: 0.95, source: 'demo' },
@@ -19,7 +20,8 @@ export async function analyzeStatementTool(input: {
       { id: randomUUID(), vendor: 'GitHub', normalized_name: 'github', monthly_cost: 100, category: 'productivity', confidence: 0.9, source: 'demo' },
       { id: randomUUID(), vendor: 'Figma', normalized_name: 'figma', monthly_cost: 150, category: 'design', confidence: 0.85, source: 'demo' },
     ];
-    state.subscriptions = demo;
+    mergeSubscriptions(demo);
+    logActivity('statement_analyzed', `Analyzed statement: found ${demo.length} subscriptions (demo)`, { count: demo.length });
     const total = demo.reduce((s, x) => s + x.monthly_cost, 0);
     return {
       found: demo.length, total_monthly: total,
@@ -54,7 +56,8 @@ export async function analyzeStatementTool(input: {
     monthly_cost: r.monthly_cost, account_email: r.account_email,
     category: 'other' as const, confidence: 0.85, source: 'pdf' as const,
   }));
-  state.subscriptions = subs;
+  mergeSubscriptions(subs);
+  logActivity('statement_analyzed', `Analyzed statement: found ${subs.length} subscriptions`, { count: subs.length });
   return {
     found: subs.length, total_monthly: subs.reduce((s, x) => s + x.monthly_cost, 0),
     subscriptions: subs,
@@ -67,4 +70,5 @@ export async function analyzeStatementTool(input: {
 export const analyzeStatementSchema = z.object({
   pdf_base64: z.string().optional(),
   filename: z.string().optional(),
+  demo_mode: z.boolean().optional(),
 });

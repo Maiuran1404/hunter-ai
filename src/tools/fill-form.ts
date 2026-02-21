@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { chromium } from 'playwright';
-import { state, isDemoMode } from '../state.js';
+import { state, isDemoMode, logActivity } from '../state.js';
 import { randomUUID } from 'crypto';
 import { writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import type { FormFillResult, CompanyProfile } from '../types.js';
@@ -46,8 +46,10 @@ export async function fillFormTool(input: {
   url: string;
   program_id: string;
   submit?: boolean;
+  demo_mode?: boolean;
 }): Promise<FormFillResult> {
-  if (isDemoMode()) {
+  if (isDemoMode(input.demo_mode)) {
+    logActivity('form_filled', `Form filled for program ${input.program_id} (demo): 5 fields`, { program_id: input.program_id, fields: 5 });
     return {
       program_id: input.program_id,
       status: 'needs_review',
@@ -125,6 +127,7 @@ export async function fillFormTool(input: {
         await submitBtn.click();
         await page.waitForTimeout(2000);
       }
+      logActivity('form_filled', `Submitted form for program ${input.program_id}: ${filled.length} fields`, { program_id: input.program_id, fields: filled.length, submitted: true });
       return {
         program_id: input.program_id,
         status: 'success',
@@ -135,6 +138,7 @@ export async function fillFormTool(input: {
       };
     }
 
+    logActivity('form_filled', `Filled form for program ${input.program_id}: ${filled.length} fields (needs review)`, { program_id: input.program_id, fields: filled.length, submitted: false });
     return {
       program_id: input.program_id,
       status: 'needs_review',
@@ -161,4 +165,5 @@ export const fillFormSchema = z.object({
   url: z.string().url(),
   program_id: z.string(),
   submit: z.boolean().optional().default(false),
+  demo_mode: z.boolean().optional(),
 });

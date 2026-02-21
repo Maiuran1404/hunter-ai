@@ -3,7 +3,7 @@ import type { AppState } from './types.js';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/auth/google/callback';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${process.env.PORT || '3001'}/auth/google/callback`;
 
 // Per-user state map
 const userStates = new Map<string, AppState>();
@@ -13,6 +13,7 @@ export function getStateForUser(userId: string): AppState {
     userStates.set(userId, {
       subscriptions: [], profile: null, opportunities: [],
       sent_emails: [], gmail_tokens: {}, reply_poll_active: false,
+      activity_log: [], digest_preferences: null,
     });
   }
   return userStates.get(userId)!;

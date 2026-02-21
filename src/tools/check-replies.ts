@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { google } from 'googleapis';
 import Anthropic from '@anthropic-ai/sdk';
-import { state, isDemoMode } from '../state.js';
+import { state, isDemoMode, logActivity } from '../state.js';
 import { createOAuth2Client } from './send-email.js';
 import type { EmailReply, SentEmail } from '../types.js';
 
@@ -82,6 +82,7 @@ async function checkRepliesForAllSentEmails(): Promise<{ found: number; emails: 
         ai_response_status: 'drafted',
       };
       sent.status = 'replied';
+      logActivity('reply_received', `Reply received from ${from} for "${subject}"`, { from, subject, email_id: sent.id });
       found++;
     } catch {
       /* per-email error, continue checking others */
@@ -91,12 +92,12 @@ async function checkRepliesForAllSentEmails(): Promise<{ found: number; emails: 
   return { found, emails: state.sent_emails };
 }
 
-export async function checkRepliesTool(_input: Record<string, never>): Promise<{
+export async function checkRepliesTool(input: { demo_mode?: boolean }): Promise<{
   found: number;
   emails: SentEmail[];
   suggestions: unknown[];
 }> {
-  if (isDemoMode()) {
+  if (isDemoMode(input.demo_mode)) {
     const demoSent = state.sent_emails.find(e => !e.reply);
     if (demoSent) {
       demoSent.reply = {
@@ -131,6 +132,7 @@ export async function checkRepliesTool(_input: Record<string, never>): Promise<{
 export async function sendReplyTool(input: {
   email_id: string;
   custom_body?: string;
+  demo_mode?: boolean;
 }): Promise<{ sent: boolean; message: string; suggestions: unknown[] }> {
   const email = state.sent_emails.find(e => e.id === input.email_id);
   if (!email?.reply) throw new Error(`No reply found for email ${input.email_id}`);
@@ -138,16 +140,23 @@ export async function sendReplyTool(input: {
   const body = input.custom_body || email.reply.ai_response_draft || '';
   if (!body) throw new Error('No reply body to send');
 
-  const { sendEmailTool } = await import('./send-email.js');
-  await sendEmailTool({
-    to: email.reply.from,
-    subject: `Re: ${email.subject}`,
-    body,
-    program_id: email.program_id,
-    thread_id: email.gmail_thread_id,
-  });
+  if (!isDemoMode(input.demo_mode)) {
+    // Real mode: send via Gmail without creating a duplicate sent_email entry
+    const { google } = await import('googleapis');
+    const { createOAuth2Client } = await import('./send-email.js');
+    const client = createOAuth2Client();
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    const raw = Buffer.from(
+      `To: ${email.reply.from}\r\nSubject: Re: ${email.subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`
+    ).toString('base64url');
+    await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: { raw, threadId: email.gmail_thread_id || undefined },
+    });
+  }
 
   email.reply.ai_response_status = 'sent';
+  logActivity('reply_sent', `Reply sent to ${email.reply.from}`, { to: email.reply.from, email_id: email.id });
 
   return {
     sent: true,
@@ -173,9 +182,12 @@ export function startReplyPolling(intervalMs: number = 24 * 60 * 60 * 1000): voi
   }, intervalMs);
 }
 
-export const checkRepliesSchema = z.object({});
+export const checkRepliesSchema = z.object({
+  demo_mode: z.boolean().optional(),
+});
 
 export const sendReplySchema = z.object({
   email_id: z.string(),
   custom_body: z.string().optional(),
+  demo_mode: z.boolean().optional(),
 });
