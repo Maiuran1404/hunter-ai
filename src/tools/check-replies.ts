@@ -8,7 +8,7 @@ import type { EmailReply, SentEmail } from '../types.js';
 const anthropic = new Anthropic();
 
 async function draftReplyWithAI(originalBody: string, replyBody: string, vendor: string): Promise<string> {
-  if (!process.env.ANTHROPIC_API_KEY?.startsWith('sk-ant-api')) {
+  if (isDemoMode() || !process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY.includes('placeholder')) {
     return `Thank you for getting back to us, ${vendor} team! We'd love to proceed with the startup program. Could you share the next steps? We're happy to provide any additional information needed.\n\nBest regards`;
   }
   const msg = await anthropic.messages.create({

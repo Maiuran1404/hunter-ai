@@ -40,7 +40,11 @@ export async function saveProfileTool(input: SaveProfileInput) {
 
 export const saveProfileSchema = z.object({
   name: z.string().optional(),
-  website: z.string().url().optional(),
+  website: z.string().optional().transform(v => {
+    if (!v) return v;
+    if (!/^https?:\/\//i.test(v)) return `https://${v}`;
+    return v;
+  }),
   stage: z.enum(['pre-seed','seed','series-a','growth']).optional(),
   team_size: z.number().int().min(1).optional(),
   monthly_arr: z.number().min(0).optional(),

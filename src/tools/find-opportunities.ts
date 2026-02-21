@@ -66,8 +66,8 @@ export async function findOpportunitiesTool(input: { demo_mode?: boolean }) {
     const vendorLower = p.vendor.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const matchedSub = state.subscriptions.find(s =>
       s.normalized_name === vendorLower ||
-      new RegExp(`\\b${vendorLower}\\b`).test(s.normalized_name) ||
-      new RegExp(`\\b${s.normalized_name}\\b`).test(vendorLower)
+      s.normalized_name.includes(vendorLower) ||
+      vendorLower.includes(s.normalized_name)
     );
     const effort: 'low'|'medium'|'high' =
       p.application_type === 'form' ? 'low' :
