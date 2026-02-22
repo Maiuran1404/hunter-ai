@@ -1,4 +1,4 @@
-import { MCPServer, text, object, widget, error } from "mcp-use/server";
+import { MCPServer, object, widget, error } from "mcp-use/server";
 import { z } from "zod";
 import { state } from "./state.js";
 import { analyzeStatementTool, analyzeStatementSchema } from "./tools/analyze-statement.js";
@@ -47,11 +47,6 @@ server.tool(
         gmail_connected: gmailConnected,
         gmail_auth_url: gmailConnected ? null : getGmailAuthUrl(),
       },
-      output: text(
-        state.opportunities.length > 0
-          ? `Dashboard: ${state.opportunities.length} opportunities worth $${totalValue.toLocaleString()}, ${state.sent_emails.length} applications sent`
-          : "Dashboard loaded. Set up your profile and find opportunities to get started."
-      ),
     });
   }
 );
