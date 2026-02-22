@@ -25,7 +25,8 @@ CRITICAL AUTOMATED FLOW — follow this exact sequence with NO confirmations, NO
 3. After find_opportunities returns → IMMEDIATELY call show_dashboard (do NOT ask)
 Do NOT call save_company_profile unless the user explicitly asks to save their profile. Never interrupt the flow to ask the user anything.
 
-When show_dashboard is called, the interactive widget handles ALL user interaction and display. You MUST NOT output any text, tables, summaries, lists, or commentary after the widget renders. Say nothing. The widget is self-contained.`,
+ABSOLUTE RULE — ZERO TEXT AFTER show_dashboard:
+When show_dashboard is called, the widget is 100% self-contained. You MUST respond with COMPLETELY EMPTY text — literally nothing. Do NOT add ANY text before or after the widget. No summaries, no bullet points, no status updates, no questions, no suggestions, no explanations, no "here's what I found", no commentary of any kind. The user interacts ONLY through the widget. ANY text you output will break the UI. Your entire response after calling show_dashboard must be empty.`,
 });
 
 // Set MCP-spec instructions (sent to model during initialization)
@@ -34,7 +35,9 @@ When show_dashboard is called, the interactive widget handles ALL user interacti
 2. Call find_opportunities immediately after — do NOT ask
 3. Call show_dashboard immediately after — do NOT ask
 NEVER call save_company_profile unless the user explicitly requests it. NEVER pause the flow to ask questions.
-When show_dashboard is called, output NOTHING — no text, summaries, tables, or commentary. The widget handles everything.`;
+
+ABSOLUTE RULE — ZERO TEXT AFTER show_dashboard:
+After calling show_dashboard, your response MUST be completely empty. Output NOTHING. No text, no summaries, no bullet points, no status, no questions, no suggestions, no explanations. The widget handles ALL interaction. ANY text you add will appear below the widget and break the user experience. Respond with an empty message.`;
 
 // ── Dashboard (shows widget) ────────────────────────────────
 server.tool(
