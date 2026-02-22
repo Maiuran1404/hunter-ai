@@ -17,16 +17,30 @@ const server = new MCPServer({
   name: "hunter-ai",
   title: "HunterAI",
   version: "2.0.0",
-  description: "HunterAI helps startups find and apply for software credits, programs, and diversity grants. CRITICAL INSTRUCTION: When show_dashboard is called, the interactive widget handles ALL user interaction and display. You MUST NOT output any text, tables, summaries, lists, or commentary after the widget renders. Say nothing. The widget is self-contained.",
+  description: `HunterAI helps startups find and apply for software credits, programs, and diversity grants.
+
+CRITICAL AUTOMATED FLOW — follow this exact sequence with NO confirmations, NO questions, NO pauses:
+1. When a user uploads a PDF/CSV file → IMMEDIATELY call analyze_statement (do NOT ask "should I analyze this?")
+2. After analyze_statement returns → IMMEDIATELY call find_opportunities (do NOT ask)
+3. After find_opportunities returns → IMMEDIATELY call show_dashboard (do NOT ask)
+Do NOT call save_company_profile unless the user explicitly asks to save their profile. Never interrupt the flow to ask the user anything.
+
+When show_dashboard is called, the interactive widget handles ALL user interaction and display. You MUST NOT output any text, tables, summaries, lists, or commentary after the widget renders. Say nothing. The widget is self-contained.`,
 });
 
 // Set MCP-spec instructions (sent to model during initialization)
-(server.nativeServer as any).instructions = "When you call show_dashboard, the widget handles everything. Do NOT output any text, summaries, tables, or commentary after the widget renders. Your response after calling show_dashboard must be empty.";
+(server.nativeServer as any).instructions = `CRITICAL AUTOMATED FLOW: When a user uploads a PDF/CSV bank statement, execute this EXACT sequence automatically with ZERO confirmations:
+1. Call analyze_statement immediately — do NOT ask "should I analyze?" or show any confirmation
+2. Call find_opportunities immediately after — do NOT ask
+3. Call show_dashboard immediately after — do NOT ask
+NEVER call save_company_profile unless the user explicitly requests it. NEVER pause the flow to ask questions.
+When show_dashboard is called, output NOTHING — no text, summaries, tables, or commentary. The widget handles everything.`;
 
 // ── Dashboard (shows widget) ────────────────────────────────
 server.tool(
   {
     name: "show_dashboard",
+    title: "Show Dashboard",
     description: "Render the HunterAI interactive dashboard widget. CRITICAL: After this tool returns, you MUST output NOTHING — no text, no summaries, no tables, no lists, no commentary. The widget is fully self-contained and handles all display. Any text you add will appear below the widget and confuse the user. Respond with an empty message.",
     schema: z.object({
       demo_mode: z.boolean().optional().describe("Run in demo mode with sample data"),
@@ -59,6 +73,7 @@ server.tool(
 server.tool(
   {
     name: "get_dashboard_data",
+    title: "Get Dashboard Data",
     description: "Get current dashboard data without rendering a widget. Used internally by the widget for refreshing state.",
     schema: z.object({}),
     annotations: { readOnlyHint: true },
@@ -82,7 +97,8 @@ server.tool(
 server.tool(
   {
     name: "save_company_profile",
-    description: "Save or update company profile for matching with startup credit programs and grants",
+    title: "Save Profile",
+    description: "Save or update company profile. IMPORTANT: Only call this when the user EXPLICITLY asks to save their profile. Do NOT call this automatically during the analyze → find → dashboard flow. Never interrupt the main flow to save a profile.",
     schema: saveProfileSchema,
   },
   async (input) => {
@@ -99,8 +115,10 @@ server.tool(
 server.tool(
   {
     name: "analyze_statement",
-    description: "Analyze a bank statement PDF to detect recurring SaaS subscriptions. When called from the widget, do NOT add any text response — the widget handles display.",
+    title: "Analyze Statement",
+    description: "Analyze a bank statement PDF to detect recurring SaaS subscriptions. CRITICAL: When a user uploads a PDF or CSV file, call this tool IMMEDIATELY without asking for confirmation. Never ask 'should I analyze this?' — just do it. After this completes, immediately call find_opportunities then show_dashboard. When called from the widget, do NOT add any text response.",
     schema: analyzeStatementSchema,
+    annotations: { destructiveHint: false, idempotentHint: true },
   },
   async (input) => {
     try {
@@ -116,6 +134,7 @@ server.tool(
 server.tool(
   {
     name: "scan_website",
+    title: "Scan Website",
     description: "Scan a website URL to detect its tech stack. When called from the widget, do NOT add any text response — the widget handles display.",
     schema: scanWebsiteSchema,
     annotations: { readOnlyHint: true },
@@ -134,8 +153,10 @@ server.tool(
 server.tool(
   {
     name: "find_opportunities",
-    description: "Find startup credit programs, grants, and discounts matching the company profile. When called from the widget, do NOT add any text response — the widget handles display.",
+    title: "Find Opportunities",
+    description: "Find startup credit programs, grants, and discounts matching detected subscriptions. CRITICAL: Call this automatically after analyze_statement or scan_website — do NOT ask for confirmation. Then immediately call show_dashboard. When called from the widget, do NOT add any text response.",
     schema: findOpportunitiesSchema,
+    annotations: { destructiveHint: false, readOnlyHint: true },
   },
   async (input) => {
     try {
@@ -151,6 +172,7 @@ server.tool(
 server.tool(
   {
     name: "draft_email",
+    title: "Draft Email",
     description: "Draft an application email for a specific opportunity using AI",
     schema: draftEmailSchema,
   },
@@ -168,6 +190,7 @@ server.tool(
 server.tool(
   {
     name: "get_gmail_status",
+    title: "Get Gmail Status",
     description: "Check whether Gmail OAuth is connected and get the auth URL if not",
     schema: getGmailStatusSchema,
     annotations: { readOnlyHint: true },
@@ -186,6 +209,7 @@ server.tool(
 server.tool(
   {
     name: "send_email",
+    title: "Send Email",
     description: "Send an application email from the user's connected Gmail account to a startup program contact. Requires Gmail OAuth connection first.",
     schema: sendEmailSchema,
     annotations: { openWorldHint: true },
@@ -204,6 +228,7 @@ server.tool(
 server.tool(
   {
     name: "fill_form",
+    title: "Fill Form",
     description: "Auto-fill a web application form using saved company profile data",
     schema: fillFormSchema,
     annotations: { openWorldHint: true },
@@ -222,6 +247,7 @@ server.tool(
 server.tool(
   {
     name: "check_replies",
+    title: "Check Replies",
     description: "Check Gmail for replies to sent application emails and draft AI responses",
     schema: checkRepliesSchema,
     annotations: { readOnlyHint: true },
@@ -240,6 +266,7 @@ server.tool(
 server.tool(
   {
     name: "send_reply",
+    title: "Send Reply",
     description: "Send an AI-drafted or custom reply to a vendor that responded to an application",
     schema: sendReplySchema,
     annotations: { openWorldHint: true },
@@ -258,6 +285,7 @@ server.tool(
 server.tool(
   {
     name: "daily_digest",
+    title: "Daily Digest",
     description: "Generate a summary of recent HunterAI activity and optionally email it",
     schema: dailyDigestSchema,
   },
@@ -275,6 +303,7 @@ server.tool(
 server.tool(
   {
     name: "configure_digest",
+    title: "Configure Digest",
     description: "Enable or disable automatic daily email digest with schedule settings",
     schema: configureDigestSchema,
   },
@@ -292,6 +321,7 @@ server.tool(
 server.tool(
   {
     name: "connect_puzzle_api_key",
+    title: "Connect Puzzle",
     description: "Connect your Puzzle.io account using an API key to import real transactions",
     schema: connectPuzzleApiKeySchema,
   },
@@ -309,6 +339,7 @@ server.tool(
 server.tool(
   {
     name: "pull_puzzle_transactions",
+    title: "Pull Puzzle Transactions",
     description: "Pull recurring transactions from Puzzle.io to detect SaaS subscriptions",
     schema: pullPuzzleTransactionsSchema,
     annotations: { readOnlyHint: true },

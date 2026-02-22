@@ -32,9 +32,10 @@ function loadPrograms(): DiscountProgram[] {
 
 function meetsEligibility(p: DiscountProgram, profile: NonNullable<typeof state.profile>): boolean {
   const e = p.eligibility;
-  if (e.max_arr && profile.monthly_arr * 12 > e.max_arr) return false;
-  if (e.max_team_size && profile.team_size > e.max_team_size) return false;
-  if (e.geographies?.length && !e.geographies.includes(profile.geography)) return false;
+  // When profile fields are empty/zero, skip those checks (permissive matching)
+  if (e.max_arr && profile.monthly_arr > 0 && profile.monthly_arr * 12 > e.max_arr) return false;
+  if (e.max_team_size && profile.team_size > 0 && profile.team_size > e.max_team_size) return false;
+  if (e.geographies?.length && profile.geography && !e.geographies.includes(profile.geography)) return false;
   if (e.requires_incubator && !profile.incubators?.length) return false;
   if (e.incubators?.length && !e.incubators.some(i => (profile.incubators ?? []).includes(i))) return false;
   if (e.requires_vendors?.length && !e.requires_vendors.some(v =>
@@ -57,7 +58,15 @@ export async function findOpportunitiesTool(input: { demo_mode?: boolean }) {
       contact_email: 'founder@demo.com', founder_name: 'Demo Founder',
     };
   }
-  if (!state.profile) throw new Error('No company profile. Call save_company_profile first.');
+  if (!state.profile) {
+    // Auto-create a permissive default profile from detected subscriptions
+    // so find_opportunities works without requiring save_company_profile first
+    const techStack = state.subscriptions.map(s => s.vendor);
+    state.profile = {
+      name: 'My Startup', stage: 'seed', team_size: 5, monthly_arr: 0,
+      incubators: [], geography: '', tech_stack: techStack,
+    };
+  }
   const programs = loadPrograms();
   const opps: Opportunity[] = [];
 
