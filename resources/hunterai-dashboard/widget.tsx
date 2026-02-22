@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useWidget, McpUseProvider, type WidgetMetadata } from 'mcp-use/react';
 import type { Opportunity, SentEmail, Subscription, CompanyProfile, EmailDraft } from '../../src/types.js';
 
@@ -30,6 +30,10 @@ interface LocalState {
   draftEmail: (EmailDraft & { opportunity: Opportunity }) | null;
   sendingEmail: boolean;
   gmailPolling: boolean;
+  activeView: 'welcome' | 'website' | 'statement';
+  websiteUrl: string;
+  scanning: boolean;
+  scanError: string | null;
 }
 
 // ─── Palette ──────────────────────────────────────────────
@@ -89,6 +93,7 @@ function HunterAIDashboardInner() {
   const [local, setLocal] = useState<LocalState>({
     loading: false, applyingId: null, showAllOpps: false,
     draftEmail: null, sendingEmail: false, gmailPolling: false,
+    activeView: 'welcome', websiteUrl: '', scanning: false, scanError: null,
   });
 
   const isDark = useMemo(() => {
@@ -109,10 +114,11 @@ function HunterAIDashboardInner() {
   const hardOpps = opps.filter(o => o.effort === 'high');
   const hasData = opps.length > 0 || subs.length > 0;
 
-  const handleRefresh = useCallback(async () => {
+  // Use get_dashboard_data (returns object, not widget) to avoid duplicate widget rendering
+  const refreshData = useCallback(async () => {
     setLocal(l => ({ ...l, loading: true }));
     try {
-      const r = await callTool('show_dashboard', {});
+      const r = await callTool('get_dashboard_data', {});
       const d = r.structuredContent as Partial<WidgetState> | undefined;
       if (d) await setMcpState(p => ({
         ...(p ?? {} as WidgetState),
@@ -141,11 +147,9 @@ function HunterAIDashboardInner() {
         setLocal(l => ({ ...l, draftEmail: { ...draft, opportunity: opp }, applyingId: null }));
       } else {
         setLocal(l => ({ ...l, applyingId: null }));
-        await sendFollowUpMessage(`Draft an application email for ${opp.program.name} and show it to me`);
       }
     } catch {
       setLocal(l => ({ ...l, applyingId: null }));
-      await sendFollowUpMessage(`Draft an application email for ${opp.program.name}`);
     }
   }, [callTool, sendFollowUpMessage]);
 
@@ -172,18 +176,48 @@ function HunterAIDashboardInner() {
         await setMcpState(p => ({ ...(p ?? {} as WidgetState), sent_emails: [...(p?.sent_emails ?? []), result.email] }));
       }
       setLocal(l => ({ ...l, draftEmail: null, sendingEmail: false }));
-      await sendFollowUpMessage(`Email sent to ${draft.to} for ${draft.opportunity.program.name}! Ready to apply to the next one?`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setLocal(l => ({ ...l, sendingEmail: false }));
       if (msg.toLowerCase().includes('gmail not connected')) {
         await setMcpState(p => ({ ...(p ?? {} as WidgetState), gmail_connected: false }));
-      } else {
-        await sendFollowUpMessage(`Could not send email: ${msg}`);
       }
     }
-  }, [local.draftEmail, gmailConnected, callTool, setMcpState, sendFollowUpMessage]);
+  }, [local.draftEmail, gmailConnected, callTool, setMcpState]);
 
+  // Scan website handler
+  const handleScanWebsite = useCallback(async () => {
+    const url = local.websiteUrl.trim();
+    if (!url) return;
+    setLocal(l => ({ ...l, scanning: true, scanError: null }));
+    try {
+      await callTool('scan_website', { url });
+      await callTool('find_opportunities', {});
+      await refreshData();
+      setLocal(l => ({ ...l, scanning: false, activeView: 'welcome' }));
+    } catch (err) {
+      setLocal(l => ({ ...l, scanning: false, scanError: err instanceof Error ? err.message : String(err) }));
+    }
+  }, [local.websiteUrl, callTool, refreshData]);
+
+  // Upload statement handler
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLocal(l => ({ ...l, scanning: true, scanError: null }));
+    try {
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      await callTool('analyze_statement', { pdf_base64: base64, filename: file.name });
+      await callTool('find_opportunities', {});
+      await refreshData();
+      setLocal(l => ({ ...l, scanning: false, activeView: 'welcome' }));
+    } catch (err) {
+      setLocal(l => ({ ...l, scanning: false, scanError: err instanceof Error ? err.message : String(err) }));
+    }
+  }, [callTool, refreshData]);
+
+  // Gmail polling
   useEffect(() => {
     if (!local.gmailPolling) return;
     const startTime = Date.now();
@@ -206,61 +240,145 @@ function HunterAIDashboardInner() {
     return () => clearInterval(interval);
   }, [local.gmailPolling, callTool, setMcpState]);
 
-  useEffect(() => { handleRefresh(); }, [handleRefresh]);
+  // No auto-refresh on mount — initial data comes from show_dashboard props
 
-  const wrap: React.CSSProperties = { fontFamily: FONT, maxWidth: 520, margin: '0 auto', padding: '28px 24px' };
+  const wrap: React.CSSProperties = { fontFamily: FONT, maxWidth: 520, margin: '0 auto', padding: '24px 20px' };
   const hdr: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: C.primary, letterSpacing: '-0.02em' };
 
   /* ═══ LOADING ═══ */
   if (isPending) return (
-    <div style={{ ...wrap, padding: '48px 24px', textAlign: 'center' }}>
+    <div style={{ ...wrap, padding: '40px 20px', textAlign: 'center' }}>
       <div style={hdr}>HunterAI</div>
       <div style={{ fontSize: 13, color: C.tertiary, marginTop: 8 }}>Loading...</div>
     </div>
   );
 
-  /* ═══ STEP 1 — WELCOME ═══ */
-  if (!hasData && !local.draftEmail) return (
-    <div style={wrap}>
-      <div style={{ marginBottom: 24 }}>
+  /* ═══ STEP 1 — WELCOME / INPUT VIEWS ═══ */
+  if (!hasData && !local.draftEmail) {
+    /* ── Website URL input view ── */
+    if (local.activeView === 'website') return (
+      <div style={wrap}>
+        <button onClick={() => setLocal(l => ({ ...l, activeView: 'welcome', scanError: null }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
+          <span style={{ fontSize: 16 }}>&larr;</span> Back
+        </button>
         <div style={hdr}>HunterAI</div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: C.primary, lineHeight: 1.3, letterSpacing: '-0.02em', marginTop: 12 }}>
-          Find startup credits &amp; grants you're missing out on.
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, lineHeight: 1.3, letterSpacing: '-0.02em', marginTop: 8 }}>
+          Enter your website URL
+        </div>
+        <div style={{ fontSize: 13, color: C.secondary, marginTop: 4, marginBottom: 16 }}>
+          We'll scan your site to detect your tech stack and find matching credits.
+        </div>
+        {local.scanning ? (
+          <div style={{ textAlign: 'center', padding: '28px 0' }}>
+            <div style={{ width: 32, height: 32, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: '50%', margin: '0 auto 12px', animation: 'hunterSpin 0.8s linear infinite' }} />
+            <div style={{ fontSize: 13, color: C.tertiary }}>Scanning website...</div>
+            <style>{`@keyframes hunterSpin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              placeholder="e.g. mycompany.com"
+              value={local.websiteUrl}
+              onChange={e => setLocal(l => ({ ...l, websiteUrl: e.target.value, scanError: null }))}
+              onKeyDown={e => e.key === 'Enter' && !local.scanning && handleScanWebsite()}
+              autoFocus
+              style={{ flex: 1, padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 10, background: C.elevated, color: C.primary, fontSize: 14, fontFamily: FONT, outline: 'none' }}
+            />
+            <button
+              onClick={handleScanWebsite}
+              disabled={!local.websiteUrl.trim()}
+              style={{ padding: '12px 20px', border: 'none', borderRadius: 10, background: C.btnPrimary, color: C.btnPriTx, fontSize: 14, fontWeight: 600, cursor: 'pointer', opacity: !local.websiteUrl.trim() ? 0.4 : 1, whiteSpace: 'nowrap' }}
+            >
+              Scan
+            </button>
+          </div>
+        )}
+        {local.scanError && (
+          <div style={{ marginTop: 10, fontSize: 12, color: '#ef4444', lineHeight: 1.4 }}>{local.scanError}</div>
+        )}
+      </div>
+    );
+
+    /* ── Statement upload view ── */
+    if (local.activeView === 'statement') return (
+      <div style={wrap}>
+        <button onClick={() => setLocal(l => ({ ...l, activeView: 'welcome', scanError: null }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
+          <span style={{ fontSize: 16 }}>&larr;</span> Back
+        </button>
+        <div style={hdr}>HunterAI</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, lineHeight: 1.3, letterSpacing: '-0.02em', marginTop: 8 }}>
+          Upload your bank statement
+        </div>
+        <div style={{ fontSize: 13, color: C.secondary, marginTop: 4, marginBottom: 16 }}>
+          We'll detect your SaaS subscriptions and find matching credits.
+        </div>
+        {local.scanning ? (
+          <div style={{ textAlign: 'center', padding: '28px 0' }}>
+            <div style={{ width: 32, height: 32, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: '50%', margin: '0 auto 12px', animation: 'hunterSpin 0.8s linear infinite' }} />
+            <div style={{ fontSize: 13, color: C.tertiary }}>Analyzing statement...</div>
+            <style>{`@keyframes hunterSpin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        ) : (
+          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '28px 20px', border: `2px dashed ${C.border}`, borderRadius: 12, cursor: 'pointer', background: C.surface }}>
+            <span style={{ fontSize: 28 }}>&#128196;</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: C.primary }}>Choose a PDF or CSV file</span>
+            <span style={{ fontSize: 12, color: C.tertiary }}>Click to browse your files</span>
+            <input
+              type="file"
+              accept=".pdf,.csv"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+            />
+          </label>
+        )}
+        {local.scanError && (
+          <div style={{ marginTop: 10, fontSize: 12, color: '#ef4444', lineHeight: 1.4 }}>{local.scanError}</div>
+        )}
+      </div>
+    );
+
+    /* ── Default welcome view ── */
+    return (
+      <div style={wrap}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={hdr}>HunterAI</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.primary, lineHeight: 1.3, letterSpacing: '-0.02em', marginTop: 8 }}>
+            Find startup credits &amp; grants you're missing out on.
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            onClick={() => setLocal(l => ({ ...l, activeView: 'website', scanError: null }))}
+            style={{ flex: 1, padding: '20px 16px', textAlign: 'left', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
+          >
+            <span style={{ fontSize: 20 }}>&#127760;</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: C.primary, lineHeight: 1.3 }}>Scan my website</span>
+            <span style={{ fontSize: 12, color: C.secondary, lineHeight: 1.4 }}>Auto-detect your tech stack and find matching credits</span>
+          </button>
+          <button
+            onClick={() => setLocal(l => ({ ...l, activeView: 'statement', scanError: null }))}
+            style={{ flex: 1, padding: '20px 16px', textAlign: 'left', background: C.cardBg, border: `1px solid ${C.cardBorder}`, borderRadius: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
+          >
+            <span style={{ fontSize: 20 }}>&#128196;</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: C.primary, lineHeight: 1.3 }}>Upload bank statement</span>
+            <span style={{ fontSize: 12, color: C.secondary, lineHeight: 1.4 }}>PDF or CSV to detect your SaaS subscriptions</span>
+          </button>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 12 }}>
-        <button
-          onClick={() => sendFollowUpMessage('I want to scan my website to find credits and discounts. Ask me for my website URL. After scanning, automatically save my profile and find all matching credit opportunities, then refresh the dashboard.')}
-          disabled={local.loading}
-          style={{ flex: 1, padding: '20px 18px', textAlign: 'left', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
-        >
-          <span style={{ fontSize: 20 }}>&#127760;</span>
-          <span style={{ fontSize: 15, fontWeight: 600, color: C.primary, lineHeight: 1.3 }}>Scan my website</span>
-          <span style={{ fontSize: 12, color: C.secondary, lineHeight: 1.4 }}>Auto-detect your tech stack and find matching credits</span>
-        </button>
-        <button
-          onClick={() => sendFollowUpMessage('I want to upload my bank statement to find software subscriptions and credits. Ask me to upload my bank statement PDF. After analyzing it, automatically save my profile and find all matching credit opportunities, then refresh the dashboard.')}
-          disabled={local.loading}
-          style={{ flex: 1, padding: '20px 18px', textAlign: 'left', background: C.cardBg, border: `1px solid ${C.cardBorder}`, borderRadius: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
-        >
-          <span style={{ fontSize: 20 }}>&#128196;</span>
-          <span style={{ fontSize: 15, fontWeight: 600, color: C.primary, lineHeight: 1.3 }}>Upload bank statement</span>
-          <span style={{ fontSize: 12, color: C.secondary, lineHeight: 1.4 }}>PDF or CSV to detect your SaaS subscriptions</span>
-        </button>
-      </div>
-    </div>
-  );
+    );
+  }
 
   /* ═══ STEP 3a — GMAIL CONNECT ═══ */
   if (local.draftEmail && !gmailConnected) return (
     <div style={wrap}>
-      <button onClick={() => setLocal(l => ({ ...l, draftEmail: null, gmailPolling: false }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
-        <span style={{ fontSize: 16 }}>&larr;</span> Back to opportunities
+      <button onClick={() => setLocal(l => ({ ...l, draftEmail: null, gmailPolling: false }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
+        <span style={{ fontSize: 16 }}>&larr;</span> Back
       </button>
-      <div style={{ textAlign: 'center', padding: '24px 0' }}>
-        <div style={{ width: 56, height: 56, borderRadius: 16, margin: '0 auto 20px', background: C.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>&#9993;</div>
+      <div style={{ textAlign: 'center', padding: '20px 0' }}>
+        <div style={{ width: 56, height: 56, borderRadius: 16, margin: '0 auto 16px', background: C.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>&#9993;</div>
         <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, marginBottom: 6, letterSpacing: '-0.02em' }}>Connect Gmail to apply</div>
-        <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.5, maxWidth: 320, margin: '0 auto 24px' }}>
+        <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.5, maxWidth: 320, margin: '0 auto 20px' }}>
           We'll send an application email from your Gmail to <strong style={{ color: C.primary }}>{local.draftEmail.opportunity.program.name}</strong>
         </div>
         {gmailAuthUrl && !local.gmailPolling && (
@@ -285,15 +403,15 @@ function HunterAIDashboardInner() {
   /* ═══ STEP 3b — EMAIL DRAFT ═══ */
   if (local.draftEmail && gmailConnected) return (
     <div style={wrap}>
-      <button onClick={() => setLocal(l => ({ ...l, draftEmail: null }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
-        <span style={{ fontSize: 16 }}>&larr;</span> Back to opportunities
+      <button onClick={() => setLocal(l => ({ ...l, draftEmail: null }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
+        <span style={{ fontSize: 16 }}>&larr;</span> Back
       </button>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: C.primary }}>Review application</span>
         <span style={{ fontSize: 12, color: C.tertiary }}>{local.draftEmail.opportunity.program.name}</span>
         <span style={{ fontSize: 12, fontWeight: 600, color: C.accentText, marginLeft: 'auto', fontFeatureSettings: '"tnum"' }}>{fmtCurrency(local.draftEmail.opportunity.potential_value)}</span>
       </div>
-      <div style={{ background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+      <div style={{ background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
         <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.borderSub}`, display: 'flex', gap: 8 }}>
           <span style={{ fontSize: 11, color: C.tertiary, minWidth: 36 }}>To</span>
           <span style={{ fontSize: 13, color: C.primary, fontWeight: 500 }}>{local.draftEmail.to}</span>
@@ -334,21 +452,18 @@ function HunterAIDashboardInner() {
   const sentForOpp = (opp: Opportunity) => emails.some(e => e.program_id === opp.program.id);
 
   return (
-    <div style={{ fontFamily: FONT, maxWidth: 520, margin: '0 auto', padding: '24px 20px' }}>
+    <div style={wrap}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={hdr}>HunterAI</span>
-          {profile && <span style={{ fontSize: 12, color: C.tertiary }}>{profile.name}</span>}
-        </div>
-        <button onClick={handleRefresh} disabled={local.loading} style={{ background: 'none', border: 'none', padding: '4px 6px', cursor: 'pointer', fontSize: 14, color: C.tertiary, opacity: local.loading ? 0.4 : 0.7, lineHeight: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <span style={hdr}>HunterAI</span>
+        <button onClick={refreshData} disabled={local.loading} style={{ background: 'none', border: 'none', padding: '4px 6px', cursor: 'pointer', fontSize: 14, color: C.tertiary, opacity: local.loading ? 0.4 : 0.7, lineHeight: 1 }}>
           {local.loading ? '\u23f3' : '\u21bb'}
         </button>
       </div>
 
       {/* Expense donut chart */}
       {subs.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: 16, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: 16, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 16 }}>
           <div style={{ position: 'relative', flexShrink: 0, width: 120, height: 120 }}>
             <svg width="120" height="120" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r={radius} fill="none" stroke={C.border} strokeWidth="14" />
@@ -377,8 +492,8 @@ function HunterAIDashboardInner() {
       )}
 
       {/* Savings summary */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 20 }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
           <div style={{ fontSize: 32, fontWeight: 700, color: C.primary, letterSpacing: '-0.03em', lineHeight: 1, fontFeatureSettings: '"tnum"' }}>
             {totalValue > 0 ? `$${(totalValue / 1000).toFixed(totalValue % 1000 === 0 ? 0 : 1)}K` : '$0'}
           </div>
@@ -398,7 +513,7 @@ function HunterAIDashboardInner() {
 
       {/* Find credits CTA */}
       {subs.length > 0 && opps.length === 0 && (
-        <button onClick={async () => { setLocal(l => ({ ...l, loading: true })); await sendFollowUpMessage('Find all matching credit opportunities for these subscriptions and refresh the dashboard'); }} disabled={local.loading} style={{ width: '100%', padding: '14px 16px', marginBottom: 20, background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 10, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button onClick={async () => { setLocal(l => ({ ...l, loading: true })); try { await callTool('find_opportunities', {}); await refreshData(); } catch {} setLocal(l => ({ ...l, loading: false })); }} disabled={local.loading} style={{ width: '100%', padding: '14px 16px', marginBottom: 16, background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 10, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: C.accentText }}>{local.loading ? 'Searching...' : 'Find credits for these tools'}</span>
           {!local.loading && <span style={{ fontSize: 16, color: C.accentText }}>&rarr;</span>}
         </button>
@@ -406,8 +521,8 @@ function HunterAIDashboardInner() {
 
       {/* Apply all easy CTA */}
       {easyOpps.length > 0 && appliedCount === 0 && (
-        <div style={{ padding: '12px 16px', background: C.accentSoft, borderRadius: 10, marginBottom: 20, borderLeft: `3px solid ${C.accent}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: C.primary }}>{easyOpps.length} easy application{easyOpps.length !== 1 ? 's' : ''} ready to send</span>
+        <div style={{ padding: '12px 16px', background: C.accentSoft, borderRadius: 10, marginBottom: 16, borderLeft: `3px solid ${C.accent}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: C.primary }}>{easyOpps.length} easy application{easyOpps.length !== 1 ? 's' : ''} ready</span>
           <button onClick={handleApplyAll} disabled={local.loading || local.applyingId !== null} style={{ padding: '8px 16px', border: 'none', borderRadius: 8, background: C.btnPrimary, color: C.btnPriTx, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>Start applying</button>
         </div>
       )}
@@ -421,8 +536,8 @@ function HunterAIDashboardInner() {
         if (!group.items.length) return null;
         const shown = local.showAllOpps ? group.items : group.items.slice(0, 5);
         return (
-          <div key={group.label} style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '6px 2px' }}>{group.label} ({group.items.length})</div>
+          <div key={group.label} style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 2px' }}>{group.label} ({group.items.length})</div>
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', background: C.elevated }}>
               {shown.map(opp => {
                 const isSent = sentForOpp(opp);
@@ -431,8 +546,8 @@ function HunterAIDashboardInner() {
                   <div key={opp.id} style={{ padding: '10px 12px', borderBottom: `1px solid ${C.borderSub}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: C.primary }}>{opp.program.name}</span>
-                        {opp.program.verified && <span style={{ fontSize: 9, color: C.accent }}>&#10003;</span>}
+                        <span style={{ fontSize: 13, fontWeight: 600, color: C.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opp.program.name}</span>
+                        {opp.program.verified && <span style={{ fontSize: 9, color: C.accent, flexShrink: 0 }}>&#10003;</span>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 11, color: C.secondary, background: C.surface, padding: '1px 5px', borderRadius: 3 }}>{typeLabels[opp.program.type] ?? 'Program'}</span>
