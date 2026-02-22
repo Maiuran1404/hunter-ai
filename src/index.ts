@@ -1,4 +1,4 @@
-import { MCPServer, object, widget, error } from "mcp-use/server";
+import { MCPServer, object, widget, text, error } from "mcp-use/server";
 import { z } from "zod";
 import { state } from "./state.js";
 import { analyzeStatementTool, analyzeStatementSchema } from "./tools/analyze-statement.js";
@@ -50,6 +50,7 @@ server.tool(
         gmail_connected: gmailConnected,
         gmail_auth_url: gmailConnected ? null : getGmailAuthUrl(),
       },
+      output: text(""),
     });
   }
 );
