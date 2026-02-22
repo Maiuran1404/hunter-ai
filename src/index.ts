@@ -44,7 +44,7 @@ server.tool(
   {
     name: "show_dashboard",
     title: "Show Dashboard",
-    description: "Render the HunterAI interactive dashboard widget. CRITICAL: After this tool returns, you MUST output NOTHING — no text, no summaries, no tables, no lists, no commentary. The widget is fully self-contained and handles all display. Any text you add will appear below the widget and confuse the user. Respond with an empty message.",
+    description: "Render the HunterAI interactive dashboard widget. ABSOLUTE RULE: After calling this tool, your ENTIRE response must be COMPLETELY EMPTY — zero characters. Do NOT output any text, summaries, tables, lists, bullet points, status updates, questions, suggestions, or commentary. The widget is 100% self-contained. ANY text you output appears below the widget and BREAKS the UI. You MUST respond with an empty message. This is not optional.",
     schema: z.object({
       demo_mode: z.boolean().optional().describe("Run in demo mode with sample data"),
     }),
@@ -132,14 +132,14 @@ server.tool(
   {
     name: "analyze_statement",
     title: "Analyze Statement",
-    description: "Analyze a bank statement PDF to detect recurring SaaS subscriptions. CRITICAL: When a user uploads a PDF or CSV file, call this tool IMMEDIATELY without asking for confirmation. Never ask 'should I analyze this?' — just do it. After this completes, immediately call find_opportunities then show_dashboard. When called from the widget, do NOT add any text response.",
+    description: "Analyze a bank statement PDF to detect recurring SaaS subscriptions. CRITICAL: When a user uploads a PDF or CSV file, call this tool IMMEDIATELY without asking for confirmation. Never ask 'should I analyze this?' — just do it. After this completes, immediately call find_opportunities then show_dashboard. Do NOT output any text from this tool's result — the dashboard widget will display everything.",
     schema: analyzeStatementSchema,
     annotations: { destructiveHint: false, idempotentHint: true },
   },
   async (input) => {
     try {
       const result = await analyzeStatementTool(input);
-      return object(result);
+      return text(`Detected ${result.subscriptions?.length ?? 0} subscriptions. Now call find_opportunities then show_dashboard. Do not output any text.`);
     } catch (err) {
       return error(err instanceof Error ? err.message : String(err));
     }
@@ -151,14 +151,14 @@ server.tool(
   {
     name: "scan_website",
     title: "Scan Website",
-    description: "Scan a website URL to detect its tech stack. When called from the widget, do NOT add any text response — the widget handles display.",
+    description: "Scan a website URL to detect its tech stack. After this completes, immediately call find_opportunities then show_dashboard. Do NOT output any text from this tool's result — the dashboard widget will display everything.",
     schema: scanWebsiteSchema,
     annotations: { readOnlyHint: true },
   },
   async (input) => {
     try {
       const result = await scanWebsiteTool(input);
-      return object(result);
+      return text(`Detected tech stack. Now call find_opportunities then show_dashboard. Do not output any text.`);
     } catch (err) {
       return error(err instanceof Error ? err.message : String(err));
     }
@@ -170,14 +170,14 @@ server.tool(
   {
     name: "find_opportunities",
     title: "Find Opportunities",
-    description: "Find startup credit programs, grants, and discounts matching detected subscriptions. CRITICAL: Call this automatically after analyze_statement or scan_website — do NOT ask for confirmation. Then immediately call show_dashboard. When called from the widget, do NOT add any text response.",
+    description: "Find startup credit programs, grants, and discounts matching detected subscriptions. CRITICAL: Call this automatically after analyze_statement or scan_website — do NOT ask for confirmation. Then immediately call show_dashboard. Do NOT output any text from this tool's result — the dashboard widget will display everything.",
     schema: findOpportunitiesSchema,
     annotations: { destructiveHint: false, readOnlyHint: true },
   },
   async (input) => {
     try {
       const result = await findOpportunitiesTool(input);
-      return object(result);
+      return text(`Found ${result.found} opportunities worth $${result.total_potential_value.toLocaleString()}. Now call show_dashboard. Do not output any text.`);
     } catch (err) {
       return error(err instanceof Error ? err.message : String(err));
     }

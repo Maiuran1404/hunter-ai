@@ -28,9 +28,11 @@ export async function draftEmailTool(input: {
     };
   }
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001', max_tokens: 500,
-    messages: [{ role: 'user', content: `Write a concise startup program application email.
+  let body: string;
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001', max_tokens: 500,
+      messages: [{ role: 'user', content: `Write a concise startup program application email.
 Company: ${profile.name}, ${profile.stage}, ${profile.team_size} people
 Founder: ${profile.founder_name || 'the team'}
 Contact email: ${profile.contact_email || ''}
@@ -40,9 +42,14 @@ Program: ${opp.program.name} (${opp.program.vendor})
 Reasoning: ${opp.reasoning}
 Return ONLY the email body (no subject line). Under 120 words. Warm, professional.
 Sign off with the founder's actual name "${profile.founder_name || profile.name}". NEVER use placeholders like [Your name], [Your Product], [Company], etc. — always use the real values provided above.` }]
-  });
-
-  const body = msg.content[0].type === 'text' ? msg.content[0].text : '';
+    });
+    body = msg.content[0].type === 'text' ? msg.content[0].text : '';
+  } catch {
+    // Fallback template when Anthropic API is unavailable
+    const founderName = profile.founder_name || 'The Team';
+    const incubatorLine = profile.incubators?.length ? `We're backed by ${profile.incubators.join(' and ')}.` : '';
+    body = `Hi ${opp.program.vendor} team,\n\nI'm ${founderName}, founder of ${profile.name}. We're a ${profile.stage}-stage startup with a team of ${profile.team_size || 'a few'} building in the ${opp.program.vendor} ecosystem.\n\n${incubatorLine}\n\nWe'd love to apply for ${opp.program.name}. ${opp.reasoning}\n\nCould you point us to the right application process?\n\nBest,\n${founderName}${profile.contact_email ? `\n${profile.contact_email}` : ''}`;
+  }
   return {
     to: opp.program.sales_email || `startups@${opp.program.vendor.toLowerCase()}.com`,
     subject: `Startup Program Application — ${profile.name}`,

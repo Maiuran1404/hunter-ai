@@ -207,6 +207,23 @@ function HunterAIDashboardInner() {
   const hardOpps = opps.filter(o => o.effort === 'high');
   const hasData = opps.length > 0 || subs.length > 0;
 
+  const handleStartOver = useCallback(async () => {
+    await setMcpState(() => ({
+      opportunities: [],
+      sent_emails: [],
+      subscriptions: [],
+      profile: null,
+      total_potential_value: 0,
+      gmail_connected: false,
+      gmail_auth_url: null,
+    }));
+    setLocal({
+      loading: false, applyingId: null, showAllOpps: false,
+      draftEmail: null, sendingEmail: false, gmailPolling: false,
+      activeView: 'welcome', websiteUrl: '', scanning: false, scanError: null,
+    });
+  }, [setMcpState]);
+
   // Use get_dashboard_data (returns object, not widget) to avoid duplicate widget rendering
   const refreshData = useCallback(async () => {
     setLocal(l => ({ ...l, loading: true }));
@@ -589,10 +606,20 @@ function HunterAIDashboardInner() {
             <span style={{ fontSize: 15, fontWeight: 700, color: C.primary, letterSpacing: '-0.02em' }}>HunterAI</span>
             {profile && <span style={{ fontSize: 12, color: C.tertiary }}>{profile.name}</span>}
           </div>
-          <button onClick={refreshData} disabled={local.loading}
-            style={{ background: 'none', border: 'none', padding: '4px 6px', cursor: 'pointer', fontSize: 14, color: C.tertiary, opacity: local.loading ? 0.3 : 0.7, lineHeight: 1 }}>
-            {local.loading ? '\u23f3' : '\u21bb'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button onClick={handleStartOver}
+              style={{
+                background: C.btnSecBg, border: `1px solid ${C.btnSecBor}`, borderRadius: 6,
+                padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 500,
+                color: C.btnSecTx, lineHeight: 1.4,
+              }}>
+              Start over
+            </button>
+            <button onClick={refreshData} disabled={local.loading}
+              style={{ background: 'none', border: 'none', padding: '4px 6px', cursor: 'pointer', fontSize: 14, color: C.tertiary, opacity: local.loading ? 0.3 : 0.7, lineHeight: 1 }}>
+              {local.loading ? '\u23f3' : '\u21bb'}
+            </button>
+          </div>
         </div>
 
         {/* Subscription spend section */}
