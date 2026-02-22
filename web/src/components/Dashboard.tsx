@@ -44,7 +44,8 @@ function fmtCurrency(v: number, cur?: string) {
   return v >= 1000 ? `$${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K` : `$${v.toLocaleString()}`;
 }
 
-function fmtExact(v: number) {
+function fmtExact(v: number | null | undefined) {
+  if (v == null) return '$0.00';
   return `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
