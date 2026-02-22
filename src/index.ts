@@ -139,7 +139,7 @@ server.tool(
   async (input) => {
     try {
       const result = await analyzeStatementTool(input);
-      return text(`Detected ${result.subscriptions?.length ?? 0} subscriptions. Now call find_opportunities then show_dashboard. Do not output any text.`);
+      return object({ status: 'success', subscriptions_detected: result.subscriptions?.length ?? 0 });
     } catch (err) {
       return error(err instanceof Error ? err.message : String(err));
     }
@@ -157,8 +157,8 @@ server.tool(
   },
   async (input) => {
     try {
-      const result = await scanWebsiteTool(input);
-      return text(`Detected tech stack. Now call find_opportunities then show_dashboard. Do not output any text.`);
+      await scanWebsiteTool(input);
+      return object({ status: 'success' });
     } catch (err) {
       return error(err instanceof Error ? err.message : String(err));
     }
@@ -177,7 +177,7 @@ server.tool(
   async (input) => {
     try {
       const result = await findOpportunitiesTool(input);
-      return text(`Found ${result.found} opportunities worth $${result.total_potential_value.toLocaleString()}. Now call show_dashboard. Do not output any text.`);
+      return object({ status: 'success', found: result.found, total_potential_value: result.total_potential_value });
     } catch (err) {
       return error(err instanceof Error ? err.message : String(err));
     }
