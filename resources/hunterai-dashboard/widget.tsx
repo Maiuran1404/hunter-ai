@@ -190,6 +190,10 @@ function HunterAIDashboardInner() {
   const gmailConnected = mcpState?.gmail_connected ?? false;
   const gmailAuthUrl = mcpState?.gmail_auth_url ?? null;
 
+  const handleConnectGmail = useCallback(() => {
+    setLocal(l => ({ ...l, gmailPolling: true }));
+  }, []);
+
   const handleSendDraft = useCallback(async () => {
     const draft = local.draftEmail;
     if (!draft) return;
@@ -237,10 +241,6 @@ function HunterAIDashboardInner() {
     await callTool('send_reply', { email_id: id });
     await sendFollowUpMessage('Sent reply. Check for more or move to next application?');
   }, [callTool, sendFollowUpMessage]);
-
-  const handleConnectGmail = useCallback(() => {
-    setLocal(l => ({ ...l, gmailPolling: true }));
-  }, []);
 
   // Poll for Gmail connection after user clicks connect
   useEffect(() => {
