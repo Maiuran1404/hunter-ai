@@ -24,7 +24,7 @@ const server = new MCPServer({
 server.tool(
   {
     name: "show_dashboard",
-    description: "Show the HunterAI dashboard with opportunities, applications, replies, and savings tracking",
+    description: "Show the HunterAI dashboard widget. IMPORTANT: After calling this tool, do NOT add any text, summaries, or explanations — the widget handles all display. Just render the widget silently.",
     schema: z.object({
       demo_mode: z.boolean().optional().describe("Run in demo mode with sample data"),
     }),
@@ -51,6 +51,29 @@ server.tool(
   }
 );
 
+// ── Dashboard Data (widget-internal refresh, no widget render) ──
+server.tool(
+  {
+    name: "get_dashboard_data",
+    description: "Get current dashboard data without rendering a widget. Used internally by the widget for refreshing state.",
+    schema: z.object({}),
+    annotations: { readOnlyHint: true },
+  },
+  async () => {
+    const totalValue = state.opportunities.reduce((s, o) => s + o.potential_value, 0);
+    const gmailConnected = !!state.gmail_tokens.refresh_token;
+    return object({
+      opportunities: state.opportunities,
+      sent_emails: state.sent_emails,
+      subscriptions: state.subscriptions,
+      profile: state.profile,
+      total_potential_value: totalValue,
+      gmail_connected: gmailConnected,
+      gmail_auth_url: gmailConnected ? null : getGmailAuthUrl(),
+    });
+  }
+);
+
 // ── Save Company Profile ────────────────────────────────────
 server.tool(
   {
@@ -72,7 +95,7 @@ server.tool(
 server.tool(
   {
     name: "analyze_statement",
-    description: "Analyze a bank statement PDF to detect recurring SaaS subscriptions. Upload a PDF or use demo mode.",
+    description: "Analyze a bank statement PDF to detect recurring SaaS subscriptions. When called from the widget, do NOT add any text response — the widget handles display.",
     schema: analyzeStatementSchema,
   },
   async (input) => {
@@ -89,7 +112,7 @@ server.tool(
 server.tool(
   {
     name: "scan_website",
-    description: "Scan a website URL to detect its tech stack (hosting, analytics, payments, support tools, etc.) and find matching credits and discounts. Alternative to bank statement analysis.",
+    description: "Scan a website URL to detect its tech stack. When called from the widget, do NOT add any text response — the widget handles display.",
     schema: scanWebsiteSchema,
     annotations: { readOnlyHint: true },
   },
@@ -107,7 +130,7 @@ server.tool(
 server.tool(
   {
     name: "find_opportunities",
-    description: "Find startup credit programs, grants, and discounts that match the company profile and subscriptions",
+    description: "Find startup credit programs, grants, and discounts matching the company profile. When called from the widget, do NOT add any text response — the widget handles display.",
     schema: findOpportunitiesSchema,
   },
   async (input) => {
