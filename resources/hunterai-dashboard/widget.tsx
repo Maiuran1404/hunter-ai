@@ -36,32 +36,33 @@ interface LocalState {
   scanError: string | null;
 }
 
-// ─── Palette ──────────────────────────────────────────────
-function makePalette(isDark: boolean) {
-  return {
-    bg:          isDark ? '#1a1a1a' : '#ffffff',
-    surface:     isDark ? '#242424' : '#f7f7f8',
-    elevated:    isDark ? '#2d2d2d' : '#ffffff',
-    border:      isDark ? '#333333' : '#e5e5e5',
-    borderSub:   isDark ? '#2a2a2a' : '#f0f0f0',
-    primary:     isDark ? '#f0f0f0' : '#111111',
-    secondary:   isDark ? '#999999' : '#666666',
-    tertiary:    isDark ? '#666666' : '#999999',
-    muted:       isDark ? '#444444' : '#cccccc',
-    accent:      '#22c55e',
-    accentSoft:  isDark ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.06)',
-    accentText:  isDark ? '#4ade80' : '#16a34a',
-    btnPrimary:  isDark ? '#f0f0f0' : '#111111',
-    btnPriTx:    isDark ? '#111111' : '#ffffff',
-    btnSecBg:    isDark ? '#2d2d2d' : '#ffffff',
-    btnSecTx:    isDark ? '#cccccc' : '#555555',
-    btnSecBor:   isDark ? '#444444' : '#e0e0e0',
-    cardBg:      isDark ? '#242424' : '#ffffff',
-    cardBorder:  isDark ? '#333333' : '#e8e8e8',
-  } as const;
-}
+// ─── Dark Palette ─────────────────────────────────────────
+const C = {
+  bg:         '#1a1a1e',
+  surface:    '#242428',
+  elevated:   '#2e2e34',
+  border:     '#38383f',
+  borderSub:  '#2a2a30',
+  primary:    '#e4e4e6',
+  secondary:  '#8a8a92',
+  tertiary:   '#5a5a64',
+  muted:      '#404048',
+  accent:     '#22c55e',
+  accentSoft: 'rgba(34,197,94,0.10)',
+  accentGlow: 'rgba(34,197,94,0.35)',
+  accentText: '#4ade80',
+  btnPrimary: '#e4e4e6',
+  btnPriTx:   '#1a1a1e',
+  btnSecBg:   '#2e2e34',
+  btnSecTx:   '#b0b0b4',
+  btnSecBor:  '#48484f',
+  cardBg:     '#28282e',
+  cardBorder: '#38383f',
+  row:        '#333338',
+} as const;
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Inter", "SF Pro Display", system-ui, sans-serif';
+const MONO = '"SF Mono", "Fira Code", "JetBrains Mono", "Consolas", monospace';
 
 const CATEGORY_COLORS: Record<string, string> = {
   infrastructure: '#3b82f6',
@@ -77,12 +78,110 @@ function fmtCurrency(v: number, cur?: string) {
   return v >= 1000 ? `$${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K` : `$${v.toLocaleString()}`;
 }
 
+function fmtExact(v: number) {
+  return `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 const effortConfig: Record<string, { dots: number; text: string }> = {
   low: { dots: 1, text: 'Easy' }, medium: { dots: 2, text: 'Medium' }, high: { dots: 3, text: 'Hard' },
 };
 const typeLabels: Record<string, string> = {
   startup_program: 'Startup Program', diversity_grant: 'Diversity Grant',
   government_grant: 'Gov Grant', incubator_credit: 'Incubator', incubator_portal: 'Portal', negotiation: 'Negotiation',
+};
+
+// ─── Grain Texture Overlay ──────────────────────────────
+function GrainOverlay() {
+  return (
+    <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', borderRadius: 'inherit', mixBlendMode: 'overlay', opacity: 0.055 }}>
+      <filter id="hunterGrain">
+        <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#hunterGrain)" />
+    </svg>
+  );
+}
+
+// ─── Starburst Visualization ────────────────────────────
+function Starburst({ size = 160 }: { size?: number }) {
+  const center = size / 2;
+  const innerR = size * 0.065;
+  const baseR = size * 0.17;
+  const maxR = size * 0.44;
+
+  const lines = useMemo(() => {
+    const result: { x1: number; y1: number; x2: number; y2: number; opacity: number }[] = [];
+    const count = 220;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      const pr = ((i * 7919 + 17) % 97) / 97;
+      const variation =
+        Math.abs(Math.sin(angle * 7)) * 0.28 +
+        Math.abs(Math.sin(angle * 13 + 0.7)) * 0.22 +
+        Math.abs(Math.sin(angle * 3 + 1.5)) * 0.25 +
+        pr * 0.25;
+      const clamped = Math.min(variation, 1);
+      const outerR = baseR + (maxR - baseR) * clamped;
+      const opacity = 0.15 + clamped * 0.85;
+      result.push({
+        x1: center + Math.cos(angle) * innerR,
+        y1: center + Math.sin(angle) * innerR,
+        x2: center + Math.cos(angle) * outerR,
+        y2: center + Math.sin(angle) * outerR,
+        opacity,
+      });
+    }
+    return result;
+  }, [size, center, innerR, baseR, maxR]);
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block', margin: '0 auto' }}>
+      <defs>
+        <radialGradient id="hBurstGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0.10" />
+          <stop offset="55%" stopColor="#fff" stopOpacity="0.02" />
+          <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <circle cx={center} cy={center} r={maxR * 0.85} fill="url(#hBurstGlow)" />
+      {lines.map((l, i) => (
+        <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="#fff" strokeWidth="0.65" opacity={l.opacity} />
+      ))}
+      <circle cx={center} cy={center} r={innerR + 2} fill={C.bg} />
+      <circle cx={center} cy={center} r={innerR} fill="#111114" />
+    </svg>
+  );
+}
+
+// ─── Status Dot ─────────────────────────────────────────
+function StatusDot({ active = true, size = 10 }: { active?: boolean; size?: number }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: active ? C.accent : C.muted,
+      boxShadow: active ? `0 0 6px ${C.accentGlow}` : 'none',
+    }} />
+  );
+}
+
+// ─── Shared Styles ──────────────────────────────────────
+const KEYFRAMES = `@keyframes hunterSpin { to { transform: rotate(360deg); } } @keyframes hunterPulse { 0%,100% { opacity:0.5; } 50% { opacity:1; } }`;
+
+const wrapStyle: React.CSSProperties = {
+  fontFamily: FONT, maxWidth: 520, margin: '0 auto', padding: '24px 20px',
+  background: C.bg, borderRadius: 16, position: 'relative', overflow: 'hidden',
+  color: C.primary, boxShadow: '0 4px 32px rgba(0,0,0,0.5)',
+};
+
+const backBtnStyle: React.CSSProperties = {
+  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+  marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6,
+  fontSize: 13, color: C.secondary,
+};
+
+const rowCardStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  padding: '12px 16px', background: C.row, borderRadius: 8, gap: 12,
 };
 
 // ─── Main Widget ─────────────────────────────────────────
@@ -95,12 +194,6 @@ function HunterAIDashboardInner() {
     draftEmail: null, sendingEmail: false, gmailPolling: false,
     activeView: 'welcome', websiteUrl: '', scanning: false, scanError: null,
   });
-
-  const isDark = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-  }, []);
-  const C = useMemo(() => makePalette(isDark), [isDark]);
 
   const opps = mcpState?.opportunities ?? [];
   const emails = mcpState?.sent_emails ?? [];
@@ -185,7 +278,6 @@ function HunterAIDashboardInner() {
     }
   }, [local.draftEmail, gmailConnected, callTool, setMcpState]);
 
-  // Scan website handler
   const handleScanWebsite = useCallback(async () => {
     const url = local.websiteUrl.trim();
     if (!url) return;
@@ -200,7 +292,6 @@ function HunterAIDashboardInner() {
     }
   }, [local.websiteUrl, callTool, refreshData]);
 
-  // Upload statement handler
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -217,7 +308,6 @@ function HunterAIDashboardInner() {
     }
   }, [callTool, refreshData]);
 
-  // Gmail polling
   useEffect(() => {
     if (!local.gmailPolling) return;
     const startTime = Date.now();
@@ -242,38 +332,44 @@ function HunterAIDashboardInner() {
 
   // No auto-refresh on mount — initial data comes from show_dashboard props
 
-  const wrap: React.CSSProperties = { fontFamily: FONT, maxWidth: 520, margin: '0 auto', padding: '24px 20px' };
-  const hdr: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: C.primary, letterSpacing: '-0.02em' };
-
-  /* ═══ LOADING ═══ */
-  if (isPending) return (
-    <div style={{ ...wrap, padding: '40px 20px', textAlign: 'center' }}>
-      <div style={hdr}>HunterAI</div>
-      <div style={{ fontSize: 13, color: C.tertiary, marginTop: 8 }}>Loading...</div>
+  const Spinner = ({ label }: { label: string }) => (
+    <div style={{ textAlign: 'center', padding: '28px 0' }}>
+      <div style={{ width: 28, height: 28, border: `2px solid ${C.border}`, borderTopColor: C.accent, borderRadius: '50%', margin: '0 auto 12px', animation: 'hunterSpin 0.8s linear infinite' }} />
+      <div style={{ fontSize: 13, color: C.tertiary }}>{label}</div>
     </div>
   );
 
-  /* ═══ STEP 1 — WELCOME / INPUT VIEWS ═══ */
-  if (!hasData && !local.draftEmail) {
-    /* ── Website URL input view ── */
-    if (local.activeView === 'website') return (
-      <div style={wrap}>
-        <button onClick={() => setLocal(l => ({ ...l, activeView: 'welcome', scanError: null }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
+  /* ═══ LOADING ═══ */
+  if (isPending) return (
+    <div style={{ ...wrapStyle, padding: '48px 20px', textAlign: 'center' }}>
+      <style>{KEYFRAMES}</style>
+      <GrainOverlay />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <Starburst size={80} />
+        <div style={{ fontSize: 15, fontWeight: 700, color: C.primary, marginTop: 16, letterSpacing: '-0.02em' }}>HunterAI</div>
+        <div style={{ fontSize: 13, color: C.tertiary, marginTop: 6, animation: 'hunterPulse 1.5s ease-in-out infinite' }}>Loading...</div>
+      </div>
+    </div>
+  );
+
+  /* ═══ WELCOME — Website URL Input ═══ */
+  if (!hasData && !local.draftEmail && local.activeView === 'website') return (
+    <div style={wrapStyle}>
+      <style>{KEYFRAMES}</style>
+      <GrainOverlay />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <button onClick={() => setLocal(l => ({ ...l, activeView: 'welcome', scanError: null }))} style={backBtnStyle}>
           <span style={{ fontSize: 16 }}>&larr;</span> Back
         </button>
-        <div style={hdr}>HunterAI</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, lineHeight: 1.3, letterSpacing: '-0.02em', marginTop: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>HunterAI</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, lineHeight: 1.3, letterSpacing: '-0.02em', marginBottom: 4 }}>
           Enter your website URL
         </div>
-        <div style={{ fontSize: 13, color: C.secondary, marginTop: 4, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: C.secondary, marginBottom: 20, lineHeight: 1.5 }}>
           We'll scan your site to detect your tech stack and find matching credits.
         </div>
         {local.scanning ? (
-          <div style={{ textAlign: 'center', padding: '28px 0' }}>
-            <div style={{ width: 32, height: 32, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: '50%', margin: '0 auto 12px', animation: 'hunterSpin 0.8s linear infinite' }} />
-            <div style={{ fontSize: 13, color: C.tertiary }}>Scanning website...</div>
-            <style>{`@keyframes hunterSpin { to { transform: rotate(360deg); } }`}</style>
-          </div>
+          <Spinner label="Scanning website..." />
         ) : (
           <div style={{ display: 'flex', gap: 8 }}>
             <input
@@ -283,12 +379,19 @@ function HunterAIDashboardInner() {
               onChange={e => setLocal(l => ({ ...l, websiteUrl: e.target.value, scanError: null }))}
               onKeyDown={e => e.key === 'Enter' && !local.scanning && handleScanWebsite()}
               autoFocus
-              style={{ flex: 1, padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 10, background: C.elevated, color: C.primary, fontSize: 14, fontFamily: FONT, outline: 'none' }}
+              style={{
+                flex: 1, padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 8,
+                background: C.elevated, color: C.primary, fontSize: 14, fontFamily: FONT, outline: 'none',
+              }}
             />
             <button
               onClick={handleScanWebsite}
               disabled={!local.websiteUrl.trim()}
-              style={{ padding: '12px 20px', border: 'none', borderRadius: 10, background: C.btnPrimary, color: C.btnPriTx, fontSize: 14, fontWeight: 600, cursor: 'pointer', opacity: !local.websiteUrl.trim() ? 0.4 : 1, whiteSpace: 'nowrap' }}
+              style={{
+                padding: '12px 20px', border: 'none', borderRadius: 8,
+                background: C.btnPrimary, color: C.btnPriTx, fontSize: 14, fontWeight: 600,
+                cursor: 'pointer', opacity: !local.websiteUrl.trim() ? 0.4 : 1, whiteSpace: 'nowrap',
+              }}
             >
               Scan
             </button>
@@ -298,282 +401,383 @@ function HunterAIDashboardInner() {
           <div style={{ marginTop: 10, fontSize: 12, color: '#ef4444', lineHeight: 1.4 }}>{local.scanError}</div>
         )}
       </div>
-    );
+    </div>
+  );
 
-    /* ── Statement upload view ── */
-    if (local.activeView === 'statement') return (
-      <div style={wrap}>
-        <button onClick={() => setLocal(l => ({ ...l, activeView: 'welcome', scanError: null }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
+  /* ═══ WELCOME — Statement Upload ═══ */
+  if (!hasData && !local.draftEmail && local.activeView === 'statement') return (
+    <div style={wrapStyle}>
+      <style>{KEYFRAMES}</style>
+      <GrainOverlay />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <button onClick={() => setLocal(l => ({ ...l, activeView: 'welcome', scanError: null }))} style={backBtnStyle}>
           <span style={{ fontSize: 16 }}>&larr;</span> Back
         </button>
-        <div style={hdr}>HunterAI</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, lineHeight: 1.3, letterSpacing: '-0.02em', marginTop: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>HunterAI</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, lineHeight: 1.3, letterSpacing: '-0.02em', marginBottom: 4 }}>
           Upload your bank statement
         </div>
-        <div style={{ fontSize: 13, color: C.secondary, marginTop: 4, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: C.secondary, marginBottom: 20, lineHeight: 1.5 }}>
           We'll detect your SaaS subscriptions and find matching credits.
         </div>
         {local.scanning ? (
-          <div style={{ textAlign: 'center', padding: '28px 0' }}>
-            <div style={{ width: 32, height: 32, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: '50%', margin: '0 auto 12px', animation: 'hunterSpin 0.8s linear infinite' }} />
-            <div style={{ fontSize: 13, color: C.tertiary }}>Analyzing statement...</div>
-            <style>{`@keyframes hunterSpin { to { transform: rotate(360deg); } }`}</style>
-          </div>
+          <Spinner label="Analyzing statement..." />
         ) : (
-          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '28px 20px', border: `2px dashed ${C.border}`, borderRadius: 12, cursor: 'pointer', background: C.surface }}>
-            <span style={{ fontSize: 28 }}>&#128196;</span>
+          <label style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+            padding: '32px 20px', border: `2px dashed ${C.border}`, borderRadius: 10,
+            cursor: 'pointer', background: C.surface,
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 10, background: C.elevated,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+            }}>&#128196;</div>
             <span style={{ fontSize: 14, fontWeight: 600, color: C.primary }}>Choose a PDF or CSV file</span>
             <span style={{ fontSize: 12, color: C.tertiary }}>Click to browse your files</span>
-            <input
-              type="file"
-              accept=".pdf,.csv"
-              onChange={handleFileUpload}
-              style={{ display: 'none' }}
-            />
+            <input type="file" accept=".pdf,.csv" onChange={handleFileUpload} style={{ display: 'none' }} />
           </label>
         )}
         {local.scanError && (
           <div style={{ marginTop: 10, fontSize: 12, color: '#ef4444', lineHeight: 1.4 }}>{local.scanError}</div>
         )}
       </div>
-    );
+    </div>
+  );
 
-    /* ── Default welcome view ── */
-    return (
-      <div style={wrap}>
-        <div style={{ marginBottom: 20 }}>
-          <div style={hdr}>HunterAI</div>
+  /* ═══ WELCOME — Default (Two CTAs) ═══ */
+  if (!hasData && !local.draftEmail) return (
+    <div style={wrapStyle}>
+      <GrainOverlay />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ marginBottom: 28, textAlign: 'center' }}>
+          <Starburst size={100} />
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 16 }}>HunterAI</div>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.primary, lineHeight: 1.3, letterSpacing: '-0.02em', marginTop: 8 }}>
             Find startup credits &amp; grants you're missing out on.
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
           <button
             onClick={() => setLocal(l => ({ ...l, activeView: 'website', scanError: null }))}
-            style={{ flex: 1, padding: '20px 16px', textAlign: 'left', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
+            style={{
+              flex: 1, padding: '18px 16px', textAlign: 'left',
+              background: C.surface, border: `1px solid ${C.accent}33`,
+              borderRadius: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8,
+            }}
           >
-            <span style={{ fontSize: 20 }}>&#127760;</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: C.primary, lineHeight: 1.3 }}>Scan my website</span>
-            <span style={{ fontSize: 12, color: C.secondary, lineHeight: 1.4 }}>Auto-detect your tech stack and find matching credits</span>
+            <span style={{ fontSize: 18 }}>&#127760;</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: C.primary, lineHeight: 1.3 }}>Scan my website</span>
+            <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.4 }}>Auto-detect tech stack and find matching credits</span>
           </button>
           <button
             onClick={() => setLocal(l => ({ ...l, activeView: 'statement', scanError: null }))}
-            style={{ flex: 1, padding: '20px 16px', textAlign: 'left', background: C.cardBg, border: `1px solid ${C.cardBorder}`, borderRadius: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
+            style={{
+              flex: 1, padding: '18px 16px', textAlign: 'left',
+              background: C.surface, border: `1px solid ${C.border}`,
+              borderRadius: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8,
+            }}
           >
-            <span style={{ fontSize: 20 }}>&#128196;</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: C.primary, lineHeight: 1.3 }}>Upload bank statement</span>
-            <span style={{ fontSize: 12, color: C.secondary, lineHeight: 1.4 }}>PDF or CSV to detect your SaaS subscriptions</span>
+            <span style={{ fontSize: 18 }}>&#128196;</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: C.primary, lineHeight: 1.3 }}>Upload bank statement</span>
+            <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.4 }}>PDF or CSV to detect your SaaS subscriptions</span>
           </button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  /* ═══ STEP 3a — GMAIL CONNECT ═══ */
+  /* ═══ GMAIL CONNECT ═══ */
   if (local.draftEmail && !gmailConnected) return (
-    <div style={wrap}>
-      <button onClick={() => setLocal(l => ({ ...l, draftEmail: null, gmailPolling: false }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
-        <span style={{ fontSize: 16 }}>&larr;</span> Back
-      </button>
-      <div style={{ textAlign: 'center', padding: '20px 0' }}>
-        <div style={{ width: 56, height: 56, borderRadius: 16, margin: '0 auto 16px', background: C.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>&#9993;</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, marginBottom: 6, letterSpacing: '-0.02em' }}>Connect Gmail to apply</div>
-        <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.5, maxWidth: 320, margin: '0 auto 20px' }}>
-          We'll send an application email from your Gmail to <strong style={{ color: C.primary }}>{local.draftEmail.opportunity.program.name}</strong>
-        </div>
-        {gmailAuthUrl && !local.gmailPolling && (
-          <a href={gmailAuthUrl} target="_blank" rel="noopener noreferrer" onClick={handleConnectGmail} style={{ display: 'inline-block', padding: '12px 32px', borderRadius: 10, background: C.btnPrimary, color: C.btnPriTx, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
-            Connect Gmail
-          </a>
-        )}
-        {local.gmailPolling && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 32, height: 32, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: '50%', animation: 'hunterSpin 0.8s linear infinite' }} />
-            <div style={{ fontSize: 13, color: C.tertiary }}>Waiting for authorization...</div>
+    <div style={wrapStyle}>
+      <style>{KEYFRAMES}</style>
+      <GrainOverlay />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <button onClick={() => setLocal(l => ({ ...l, draftEmail: null, gmailPolling: false }))} style={backBtnStyle}>
+          <span style={{ fontSize: 16 }}>&larr;</span> Back
+        </button>
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: 14, margin: '0 auto 16px',
+            background: C.surface, border: `1px solid ${C.border}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+          }}>&#9993;</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, marginBottom: 6, letterSpacing: '-0.02em' }}>Connect Gmail to apply</div>
+          <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.5, maxWidth: 320, margin: '0 auto 20px' }}>
+            We'll send an application email from your Gmail to <strong style={{ color: C.primary }}>{local.draftEmail.opportunity.program.name}</strong>
           </div>
-        )}
-        {!gmailAuthUrl && !local.gmailPolling && (
-          <div style={{ fontSize: 13, color: C.tertiary }}>Gmail auth URL not available. Try refreshing.</div>
-        )}
+          {gmailAuthUrl && !local.gmailPolling && (
+            <a href={gmailAuthUrl} target="_blank" rel="noopener noreferrer" onClick={handleConnectGmail}
+              style={{
+                display: 'inline-block', padding: '12px 32px', borderRadius: 8,
+                background: C.btnPrimary, color: C.btnPriTx, fontSize: 14, fontWeight: 600, textDecoration: 'none',
+              }}>
+              Connect Gmail
+            </a>
+          )}
+          {local.gmailPolling && <Spinner label="Waiting for authorization..." />}
+          {!gmailAuthUrl && !local.gmailPolling && (
+            <div style={{ fontSize: 13, color: C.tertiary }}>Gmail auth URL not available. Try refreshing.</div>
+          )}
+        </div>
       </div>
-      <style>{`@keyframes hunterSpin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 
-  /* ═══ STEP 3b — EMAIL DRAFT ═══ */
+  /* ═══ EMAIL DRAFT ═══ */
   if (local.draftEmail && gmailConnected) return (
-    <div style={wrap}>
-      <button onClick={() => setLocal(l => ({ ...l, draftEmail: null }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.secondary }}>
-        <span style={{ fontSize: 16 }}>&larr;</span> Back
-      </button>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: C.primary }}>Review application</span>
-        <span style={{ fontSize: 12, color: C.tertiary }}>{local.draftEmail.opportunity.program.name}</span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: C.accentText, marginLeft: 'auto', fontFeatureSettings: '"tnum"' }}>{fmtCurrency(local.draftEmail.opportunity.potential_value)}</span>
-      </div>
-      <div style={{ background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
-        <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.borderSub}`, display: 'flex', gap: 8 }}>
-          <span style={{ fontSize: 11, color: C.tertiary, minWidth: 36 }}>To</span>
-          <span style={{ fontSize: 13, color: C.primary, fontWeight: 500 }}>{local.draftEmail.to}</span>
-        </div>
-        <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.borderSub}`, display: 'flex', gap: 8 }}>
-          <span style={{ fontSize: 11, color: C.tertiary, minWidth: 36 }}>Subj</span>
-          <span style={{ fontSize: 13, color: C.primary, fontWeight: 500 }}>{local.draftEmail.subject}</span>
-        </div>
-        <div style={{ padding: '12px 14px', fontSize: 13, color: C.secondary, lineHeight: 1.65, whiteSpace: 'pre-wrap', maxHeight: 200, overflowY: 'auto' }}>{local.draftEmail.body}</div>
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={handleSendDraft} disabled={local.sendingEmail} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: 10, background: C.accent, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', opacity: local.sendingEmail ? 0.6 : 1 }}>
-          {local.sendingEmail ? 'Sending...' : 'Send application'}
+    <div style={wrapStyle}>
+      <GrainOverlay />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <button onClick={() => setLocal(l => ({ ...l, draftEmail: null }))} style={backBtnStyle}>
+          <span style={{ fontSize: 16 }}>&larr;</span> Back
         </button>
-        <button onClick={() => { const d = local.draftEmail!; sendFollowUpMessage(`Edit this email draft for ${d.opportunity.program.name} before sending. To: ${d.to}, Subject: ${d.subject}`); }} disabled={local.sendingEmail} style={{ padding: '12px 18px', border: `1px solid ${C.btnSecBor}`, borderRadius: 10, background: C.btnSecBg, color: C.btnSecTx, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-          Edit
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.primary }}>Review application</div>
+            <div style={{ fontSize: 12, color: C.tertiary, marginTop: 2 }}>{local.draftEmail.opportunity.program.name}</div>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.accentText, fontFamily: MONO }}>{fmtCurrency(local.draftEmail.opportunity.potential_value)}</span>
+        </div>
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', marginBottom: 14 }}>
+          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.borderSub}`, display: 'flex', gap: 8 }}>
+            <span style={{ fontSize: 11, color: C.tertiary, minWidth: 34, fontFamily: MONO }}>To</span>
+            <span style={{ fontSize: 13, color: C.primary, fontWeight: 500 }}>{local.draftEmail.to}</span>
+          </div>
+          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.borderSub}`, display: 'flex', gap: 8 }}>
+            <span style={{ fontSize: 11, color: C.tertiary, minWidth: 34, fontFamily: MONO }}>Subj</span>
+            <span style={{ fontSize: 13, color: C.primary, fontWeight: 500 }}>{local.draftEmail.subject}</span>
+          </div>
+          <div style={{ padding: '12px 14px', fontSize: 13, color: C.secondary, lineHeight: 1.65, whiteSpace: 'pre-wrap', maxHeight: 200, overflowY: 'auto' }}>{local.draftEmail.body}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handleSendDraft} disabled={local.sendingEmail}
+            style={{
+              flex: 1, padding: '12px', border: 'none', borderRadius: 8,
+              background: C.accent, color: '#fff', fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', opacity: local.sendingEmail ? 0.5 : 1,
+            }}>
+            {local.sendingEmail ? 'Sending...' : 'Send application'}
+          </button>
+          <button
+            onClick={() => { const d = local.draftEmail!; sendFollowUpMessage(`Edit this email draft for ${d.opportunity.program.name} before sending. To: ${d.to}, Subject: ${d.subject}`); }}
+            disabled={local.sendingEmail}
+            style={{
+              padding: '12px 18px', border: `1px solid ${C.btnSecBor}`, borderRadius: 8,
+              background: C.btnSecBg, color: C.btnSecTx, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}>
+            Edit
+          </button>
+        </div>
       </div>
     </div>
   );
 
-  /* ═══ STEP 2 — DASHBOARD ═══ */
+  /* ═══ DASHBOARD ═══ */
   const totalMonthlySpend = subs.reduce((s, x) => s + x.monthly_cost, 0);
-  const catTotals: Record<string, number> = {};
-  for (const sub of subs) { catTotals[sub.category] = (catTotals[sub.category] ?? 0) + sub.monthly_cost; }
-  const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
-  const radius = 52;
-  const circumference = 2 * Math.PI * radius;
-  let cumOffset = 0;
-  const segments = catEntries.map(([cat, amount]) => {
-    const pct = totalMonthlySpend > 0 ? amount / totalMonthlySpend : 0;
-    const dash = pct * circumference;
-    const offset = cumOffset;
-    cumOffset += dash;
-    return { cat, amount, pct, dash, offset, color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.other };
-  });
   const appliedCount = emails.length;
   const sentForOpp = (opp: Opportunity) => emails.some(e => e.program_id === opp.program.id);
 
   return (
-    <div style={wrap}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={hdr}>HunterAI</span>
-        <button onClick={refreshData} disabled={local.loading} style={{ background: 'none', border: 'none', padding: '4px 6px', cursor: 'pointer', fontSize: 14, color: C.tertiary, opacity: local.loading ? 0.4 : 0.7, lineHeight: 1 }}>
-          {local.loading ? '\u23f3' : '\u21bb'}
-        </button>
-      </div>
+    <div style={wrapStyle}>
+      <style>{KEYFRAMES}</style>
+      <GrainOverlay />
+      <div style={{ position: 'relative', zIndex: 1 }}>
 
-      {/* Expense donut chart */}
-      {subs.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: 16, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 16 }}>
-          <div style={{ position: 'relative', flexShrink: 0, width: 120, height: 120 }}>
-            <svg width="120" height="120" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r={radius} fill="none" stroke={C.border} strokeWidth="14" />
-              {segments.map(seg => (
-                <circle key={seg.cat} cx="60" cy="60" r={radius} fill="none" stroke={seg.color} strokeWidth="14" strokeDasharray={`${seg.dash} ${circumference - seg.dash}`} strokeDashoffset={-seg.offset} strokeLinecap="butt" transform="rotate(-90 60 60)" style={{ transition: 'stroke-dasharray 0.5s ease' }} />
-              ))}
-            </svg>
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: C.primary, fontFeatureSettings: '"tnum"', lineHeight: 1 }}>
-                ${totalMonthlySpend >= 1000 ? `${(totalMonthlySpend / 1000).toFixed(1)}K` : totalMonthlySpend.toLocaleString()}
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: C.primary, letterSpacing: '-0.02em' }}>HunterAI</span>
+            {profile && <span style={{ fontSize: 12, color: C.tertiary }}>{profile.name}</span>}
+          </div>
+          <button onClick={refreshData} disabled={local.loading}
+            style={{ background: 'none', border: 'none', padding: '4px 6px', cursor: 'pointer', fontSize: 14, color: C.tertiary, opacity: local.loading ? 0.3 : 0.7, lineHeight: 1 }}>
+            {local.loading ? '\u23f3' : '\u21bb'}
+          </button>
+        </div>
+
+        {/* Subscription spend section */}
+        {subs.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 13, color: C.secondary, marginBottom: 4 }}>Total spent</div>
+              <div style={{ fontSize: 32, fontWeight: 700, color: C.primary, letterSpacing: '-0.03em', fontFamily: MONO, fontFeatureSettings: '"tnum"' }}>
+                {fmtExact(totalMonthlySpend)}
               </div>
-              <div style={{ fontSize: 9, color: C.tertiary, marginTop: 2 }}>/month</div>
+              <div style={{ fontSize: 10, color: C.tertiary, marginBottom: 16 }}>/month</div>
+              <Starburst size={150} />
             </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Software spend</div>
-            {segments.map(seg => (
-              <div key={seg.cat} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: seg.color, flexShrink: 0 }} />
-                <div style={{ flex: 1, fontSize: 12, fontWeight: 500, color: C.primary, textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{seg.cat}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: C.primary, fontFeatureSettings: '"tnum"', flexShrink: 0 }}>${seg.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Savings summary */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 32, fontWeight: 700, color: C.primary, letterSpacing: '-0.03em', lineHeight: 1, fontFeatureSettings: '"tnum"' }}>
-            {totalValue > 0 ? `$${(totalValue / 1000).toFixed(totalValue % 1000 === 0 ? 0 : 1)}K` : '$0'}
-          </div>
-          <div style={{ fontSize: 12, color: C.secondary, marginTop: 4 }}>credits available</div>
-        </div>
-        <div style={{ display: 'flex', gap: 20 }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.primary, fontFeatureSettings: '"tnum"' }}>{opps.length}</div>
-            <div style={{ fontSize: 10, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Found</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: appliedCount > 0 ? C.accentText : C.muted, fontFeatureSettings: '"tnum"' }}>{appliedCount}</div>
-            <div style={{ fontSize: 10, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Applied</div>
-          </div>
-        </div>
-      </div>
+            {/* Stack Breakdown header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.primary }}>Stack Breakdown</span>
+              {opps.length === 0 && (
+                <button
+                  onClick={async () => { setLocal(l => ({ ...l, loading: true })); try { await callTool('find_opportunities', {}); await refreshData(); } catch {} setLocal(l => ({ ...l, loading: false })); }}
+                  disabled={local.loading}
+                  style={{
+                    padding: '5px 12px', border: `1px solid ${C.btnSecBor}`, borderRadius: 4,
+                    background: C.btnSecBg, color: C.btnSecTx, fontSize: 11, fontWeight: 600,
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}>
+                  {local.loading ? '...' : 'Find credits'}
+                </button>
+              )}
+            </div>
 
-      {/* Find credits CTA */}
-      {subs.length > 0 && opps.length === 0 && (
-        <button onClick={async () => { setLocal(l => ({ ...l, loading: true })); try { await callTool('find_opportunities', {}); await refreshData(); } catch {} setLocal(l => ({ ...l, loading: false })); }} disabled={local.loading} style={{ width: '100%', padding: '14px 16px', marginBottom: 16, background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 10, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: C.accentText }}>{local.loading ? 'Searching...' : 'Find credits for these tools'}</span>
-          {!local.loading && <span style={{ fontSize: 16, color: C.accentText }}>&rarr;</span>}
-        </button>
-      )}
-
-      {/* Apply all easy CTA */}
-      {easyOpps.length > 0 && appliedCount === 0 && (
-        <div style={{ padding: '12px 16px', background: C.accentSoft, borderRadius: 10, marginBottom: 16, borderLeft: `3px solid ${C.accent}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: C.primary }}>{easyOpps.length} easy application{easyOpps.length !== 1 ? 's' : ''} ready</span>
-          <button onClick={handleApplyAll} disabled={local.loading || local.applyingId !== null} style={{ padding: '8px 16px', border: 'none', borderRadius: 8, background: C.btnPrimary, color: C.btnPriTx, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>Start applying</button>
-        </div>
-      )}
-
-      {/* Opportunities list */}
-      {opps.length > 0 && [
-        { label: 'Easy to apply', items: easyOpps },
-        { label: 'Medium effort', items: mediumOpps },
-        { label: 'Requires more effort', items: hardOpps },
-      ].map(group => {
-        if (!group.items.length) return null;
-        const shown = local.showAllOpps ? group.items : group.items.slice(0, 5);
-        return (
-          <div key={group.label} style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 2px' }}>{group.label} ({group.items.length})</div>
-            <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', background: C.elevated }}>
-              {shown.map(opp => {
-                const isSent = sentForOpp(opp);
-                const ec = effortConfig[opp.effort] ?? effortConfig.medium;
-                return (
-                  <div key={opp.id} style={{ padding: '10px 12px', borderBottom: `1px solid ${C.borderSub}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: C.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opp.program.name}</span>
-                        {opp.program.verified && <span style={{ fontSize: 9, color: C.accent, flexShrink: 0 }}>&#10003;</span>}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 11, color: C.secondary, background: C.surface, padding: '1px 5px', borderRadius: 3 }}>{typeLabels[opp.program.type] ?? 'Program'}</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                          {[1, 2, 3].map(i => (<span key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: i <= ec.dots ? C.secondary : C.muted }} />))}
-                          <span style={{ fontSize: 10, color: C.tertiary, marginLeft: 2 }}>{ec.text}</span>
-                        </span>
-                        <span style={{ fontSize: 10, color: C.tertiary }}>{opp.program.vendor}</span>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: C.primary, fontFeatureSettings: '"tnum"' }}>{fmtCurrency(opp.potential_value, opp.program.currency)}</span>
-                      <button onClick={() => !isSent && handleApplyOne(opp)} disabled={isSent || local.applyingId !== null} style={{ padding: '4px 10px', border: isSent ? 'none' : `1px solid ${C.btnSecBor}`, borderRadius: 6, background: isSent ? C.accentSoft : C.btnSecBg, fontSize: 12, fontWeight: 500, color: isSent ? C.accentText : C.primary, cursor: isSent ? 'default' : 'pointer', opacity: local.applyingId === opp.id ? 0.5 : 1, whiteSpace: 'nowrap' }}>
-                        {isSent ? 'Sent' : local.applyingId === opp.id ? '...' : opp.program.type === 'incubator_portal' ? 'View' : 'Apply'}
-                      </button>
-                    </div>
+            {/* Subscription rows */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {subs.map((sub, i) => (
+                <div key={i} style={rowCardStyle}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: 2, background: CATEGORY_COLORS[sub.category] ?? CATEGORY_COLORS.other, flexShrink: 0 }} />
+                    <span style={{ fontSize: 14, fontWeight: 500, color: C.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {sub.vendor}
+                    </span>
                   </div>
-                );
-              })}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: C.primary, fontFamily: MONO, fontFeatureSettings: '"tnum"' }}>
+                      {fmtExact(sub.monthly_cost)}
+                    </span>
+                    <StatusDot />
+                  </div>
+                </div>
+              ))}
             </div>
-            {!local.showAllOpps && group.items.length > 5 && (
-              <button onClick={() => setLocal(l => ({ ...l, showAllOpps: true }))} style={{ marginTop: 4, width: '100%', padding: '6px', background: 'transparent', border: 'none', fontSize: 12, color: C.tertiary, cursor: 'pointer', fontWeight: 500 }}>Show {group.items.length - 5} more</button>
-            )}
           </div>
-        );
-      })}
+        )}
+
+        {/* Credits summary */}
+        {(totalValue > 0 || opps.length > 0) && (
+          <div style={{
+            display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+            marginBottom: 20, padding: '14px 16px', background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`,
+          }}>
+            <div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: C.accentText, letterSpacing: '-0.03em', lineHeight: 1, fontFamily: MONO, fontFeatureSettings: '"tnum"' }}>
+                {totalValue > 0 ? `$${(totalValue / 1000).toFixed(totalValue % 1000 === 0 ? 0 : 1)}K` : '$0'}
+              </div>
+              <div style={{ fontSize: 12, color: C.secondary, marginTop: 4 }}>credits available</div>
+            </div>
+            <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, fontFamily: MONO }}>{opps.length}</div>
+                <div style={{ fontSize: 9, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Found</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: appliedCount > 0 ? C.accentText : C.muted, fontFamily: MONO }}>{appliedCount}</div>
+                <div style={{ fontSize: 9, color: C.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Applied</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Find credits CTA */}
+        {subs.length > 0 && opps.length === 0 && !totalValue && (
+          <button
+            onClick={async () => { setLocal(l => ({ ...l, loading: true })); try { await callTool('find_opportunities', {}); await refreshData(); } catch {} setLocal(l => ({ ...l, loading: false })); }}
+            disabled={local.loading}
+            style={{
+              width: '100%', padding: '14px 16px', marginBottom: 16, background: C.accentSoft,
+              border: `1px solid ${C.accent}`, borderRadius: 8, cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: C.accentText }}>{local.loading ? 'Searching...' : 'Find credits for these tools'}</span>
+            {!local.loading && <span style={{ fontSize: 16, color: C.accentText }}>&rarr;</span>}
+          </button>
+        )}
+
+        {/* Apply all easy CTA */}
+        {easyOpps.length > 0 && appliedCount === 0 && (
+          <div style={{
+            padding: '12px 16px', background: C.accentSoft, borderRadius: 8,
+            marginBottom: 16, borderLeft: `3px solid ${C.accent}`,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: C.primary }}>{easyOpps.length} easy application{easyOpps.length !== 1 ? 's' : ''} ready</span>
+            <button onClick={handleApplyAll} disabled={local.loading || local.applyingId !== null}
+              style={{
+                padding: '8px 16px', border: 'none', borderRadius: 6,
+                background: C.btnPrimary, color: C.btnPriTx, fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              }}>
+              Start applying
+            </button>
+          </div>
+        )}
+
+        {/* Opportunities list */}
+        {opps.length > 0 && [
+          { label: 'Easy to apply', items: easyOpps },
+          { label: 'Medium effort', items: mediumOpps },
+          { label: 'Requires more effort', items: hardOpps },
+        ].map(group => {
+          if (!group.items.length) return null;
+          const shown = local.showAllOpps ? group.items : group.items.slice(0, 5);
+          return (
+            <div key={group.label} style={{ marginBottom: 14 }}>
+              <div style={{
+                fontSize: 11, fontWeight: 600, color: C.tertiary, textTransform: 'uppercase',
+                letterSpacing: '0.06em', padding: '6px 2px',
+              }}>
+                {group.label} ({group.items.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {shown.map(opp => {
+                  const isSent = sentForOpp(opp);
+                  const ec = effortConfig[opp.effort] ?? effortConfig.medium;
+                  return (
+                    <div key={opp.id} style={{ ...rowCardStyle, padding: '10px 14px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: C.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opp.program.name}</span>
+                          {opp.program.verified && <span style={{ fontSize: 9, color: C.accent, flexShrink: 0 }}>&#10003;</span>}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 10, color: C.secondary, background: C.elevated, padding: '1px 5px', borderRadius: 3 }}>
+                            {typeLabels[opp.program.type] ?? 'Program'}
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                            {[1, 2, 3].map(i => (
+                              <span key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: i <= ec.dots ? C.secondary : C.muted }} />
+                            ))}
+                            <span style={{ fontSize: 9, color: C.tertiary, marginLeft: 2 }}>{ec.text}</span>
+                          </span>
+                          <span style={{ fontSize: 9, color: C.tertiary }}>{opp.program.vendor}</span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: C.primary, fontFamily: MONO, fontFeatureSettings: '"tnum"' }}>
+                          {fmtCurrency(opp.potential_value, opp.program.currency)}
+                        </span>
+                        {isSent ? (
+                          <StatusDot active={true} />
+                        ) : (
+                          <button
+                            onClick={() => handleApplyOne(opp)}
+                            disabled={local.applyingId !== null}
+                            style={{
+                              padding: '4px 10px', border: `1px solid ${C.btnSecBor}`, borderRadius: 6,
+                              background: C.btnSecBg, color: C.btnSecTx, fontSize: 11, fontWeight: 500,
+                              cursor: 'pointer', opacity: local.applyingId === opp.id ? 0.4 : 1, whiteSpace: 'nowrap',
+                            }}>
+                            {local.applyingId === opp.id ? '...' : opp.program.type === 'incubator_portal' ? 'View' : 'Apply'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {!local.showAllOpps && group.items.length > 5 && (
+                <button onClick={() => setLocal(l => ({ ...l, showAllOpps: true }))}
+                  style={{ marginTop: 4, width: '100%', padding: '6px', background: 'transparent', border: 'none', fontSize: 12, color: C.tertiary, cursor: 'pointer', fontWeight: 500 }}>
+                  Show {group.items.length - 5} more
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -583,9 +787,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   static getDerivedStateFromError(error: Error) { return { error }; }
   render() {
     if (this.state.error) return (
-      <div style={{ padding: 32, textAlign: 'center', fontFamily: FONT }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 8 }}>Something went wrong</div>
-        <div style={{ fontSize: 13, color: '#777' }}>{this.state.error.message}</div>
+      <div style={{ padding: 32, textAlign: 'center', fontFamily: FONT, background: C.bg, borderRadius: 16, color: C.primary }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Something went wrong</div>
+        <div style={{ fontSize: 13, color: C.secondary }}>{this.state.error.message}</div>
       </div>
     );
     return this.props.children;

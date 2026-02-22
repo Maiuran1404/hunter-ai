@@ -17,21 +17,24 @@ const server = new MCPServer({
   name: "hunter-ai",
   title: "HunterAI",
   version: "2.0.0",
-  description: "Find and apply for startup credits, programs, and diversity grants worth $50K-$500K for your startup",
+  description: "HunterAI helps startups find and apply for software credits, programs, and diversity grants. CRITICAL INSTRUCTION: When show_dashboard is called, the interactive widget handles ALL user interaction and display. You MUST NOT output any text, tables, summaries, lists, or commentary after the widget renders. Say nothing. The widget is self-contained.",
 });
+
+// Set MCP-spec instructions (sent to model during initialization)
+(server.nativeServer as any).instructions = "When you call show_dashboard, the widget handles everything. Do NOT output any text, summaries, tables, or commentary after the widget renders. Your response after calling show_dashboard must be empty.";
 
 // ── Dashboard (shows widget) ────────────────────────────────
 server.tool(
   {
     name: "show_dashboard",
-    description: "Show the HunterAI dashboard widget. IMPORTANT: After calling this tool, do NOT add any text, summaries, or explanations — the widget handles all display. Just render the widget silently.",
+    description: "Render the HunterAI interactive dashboard widget. CRITICAL: After this tool returns, you MUST output NOTHING — no text, no summaries, no tables, no lists, no commentary. The widget is fully self-contained and handles all display. Any text you add will appear below the widget and confuse the user. Respond with an empty message.",
     schema: z.object({
       demo_mode: z.boolean().optional().describe("Run in demo mode with sample data"),
     }),
     widget: {
       name: "hunterai-dashboard",
-      invoking: "Loading HunterAI dashboard...",
-      invoked: "HunterAI dashboard loaded",
+      invoking: "Loading HunterAI...",
+      invoked: "",
     },
   },
   async () => {
