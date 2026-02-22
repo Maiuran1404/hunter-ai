@@ -89,15 +89,6 @@ export interface EmailReply {
   ai_response_status: 'pending'|'drafted'|'sent'|'skipped';
 }
 
-export interface FormFillResult {
-  program_id: string;
-  status: 'success'|'needs_review'|'failed';
-  screenshot_path?: string | null;
-  fields_filled: string[];
-  message: string;
-  requires_confirmation: boolean;
-}
-
 export interface GmailTokens {
   access_token?: string; refresh_token?: string; expiry_date?: number;
 }
@@ -115,20 +106,11 @@ export interface ActivityEntry {
   metadata: Record<string, unknown>;
 }
 
-export interface DigestPreferences {
-  enabled: boolean;
-  send_time_utc: string;
-  recipient_email: string;
-  last_sent_at?: string;
-}
-
 export interface AppState {
   subscriptions: Subscription[];
   profile: CompanyProfile | null;
   opportunities: Opportunity[];
   sent_emails: SentEmail[];
   gmail_tokens: GmailTokens;
-  reply_poll_active: boolean;
   activity_log: ActivityEntry[];
-  digest_preferences: DigestPreferences | null;
 }

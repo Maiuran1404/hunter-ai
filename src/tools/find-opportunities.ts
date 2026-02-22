@@ -91,6 +91,7 @@ export async function findOpportunitiesTool(input: { demo_mode?: boolean }) {
         ? `You use ${matchedSub.vendor} ($${matchedSub.monthly_cost}/mo) — qualify for their startup program`
         : `Profile matches ${p.name} eligibility`,
       matched_subscription: matchedSub?.vendor,
+      matched_monthly_cost: matchedSub?.monthly_cost,
     });
   }
 
