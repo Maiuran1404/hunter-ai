@@ -10,6 +10,22 @@ There are **66 credit programs** across AWS, Google Cloud, Anthropic, Vercel, an
 
 ---
 
+## How It Works
+
+### 1. Drop in your website or bank statement
+HunterAI scans your URL for tech signatures (60+ vendors) or reads your bank statement PDF to find every SaaS tool you're paying for.
+
+### 2. Instant matching against 66 programs
+Your ARR, team size, geography, incubators, and founder identity are checked against every program. Results are ranked by dollar value and sorted by effort — easy ones first.
+
+### 3. One-click apply
+Hit "Apply." AI writes a personalized email using your real company details (never placeholder text), connects to your Gmail, and sends it. Done.
+
+### 4. Auto-follow-up
+HunterAI watches your inbox for vendor replies and drafts a response. You review, click send, repeat.
+
+---
+
 ## See It In Action
 
 ```
@@ -41,22 +57,6 @@ There are **66 credit programs** across AWS, Google Cloud, Anthropic, Vercel, an
 ```
 
 **That's it.** Scan. Click. Get credits. No spreadsheets. No tab-switching. No forgetting to follow up.
-
----
-
-## How It Works
-
-### 1. Drop in your website or bank statement
-HunterAI scans your URL for tech signatures (60+ vendors) or reads your bank statement PDF to find every SaaS tool you're paying for.
-
-### 2. Instant matching against 66 programs
-Your ARR, team size, geography, incubators, and founder identity are checked against every program. Results are ranked by dollar value and sorted by effort — easy ones first.
-
-### 3. One-click apply
-Hit "Apply." AI writes a personalized email using your real company details (never placeholder text), connects to your Gmail, and sends it. Done.
-
-### 4. Auto-follow-up
-HunterAI watches your inbox for vendor replies and drafts a response. You review, click send, repeat.
 
 ---
 
