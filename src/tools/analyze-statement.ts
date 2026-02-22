@@ -4,6 +4,20 @@ import { state, isDemoMode, logActivity, mergeSubscriptions } from '../state.js'
 import { randomUUID } from 'crypto';
 import type { Subscription } from '../types.js';
 
+/** Ensure a basic profile exists from detected subscriptions so find_opportunities always works */
+function ensureProfileFromSubscriptions() {
+  if (state.profile) return;
+  state.profile = {
+    name: 'My Startup',
+    stage: 'seed',
+    team_size: 5,
+    monthly_arr: 0,
+    incubators: [],
+    geography: '',
+    tech_stack: state.subscriptions.map(s => s.vendor),
+  };
+}
+
 const anthropic = new Anthropic();
 
 export async function analyzeStatementTool(input: {
@@ -21,6 +35,7 @@ export async function analyzeStatementTool(input: {
       { id: randomUUID(), vendor: 'Figma', normalized_name: 'figma', monthly_cost: 150, category: 'design', confidence: 0.85, source: 'demo' },
     ];
     mergeSubscriptions(demo);
+    ensureProfileFromSubscriptions();
     logActivity('statement_analyzed', `Analyzed statement: found ${demo.length} subscriptions (demo)`, { count: demo.length });
     const total = demo.reduce((s, x) => s + x.monthly_cost, 0);
     return {
@@ -57,6 +72,7 @@ export async function analyzeStatementTool(input: {
     category: 'other' as const, confidence: 0.85, source: 'pdf' as const,
   }));
   mergeSubscriptions(subs);
+  ensureProfileFromSubscriptions();
   logActivity('statement_analyzed', `Analyzed statement: found ${subs.length} subscriptions`, { count: subs.length });
   return {
     found: subs.length, total_monthly: subs.reduce((s, x) => s + x.monthly_cost, 0),
