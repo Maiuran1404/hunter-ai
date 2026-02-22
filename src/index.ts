@@ -86,6 +86,12 @@ server.tool(
     annotations: { readOnlyHint: true },
   },
   async () => {
+    if (!state.profile && state.subscriptions.length > 0) {
+      state.profile = {
+        name: 'My Startup', stage: 'seed', team_size: 5, monthly_arr: 0,
+        incubators: [], geography: '', tech_stack: state.subscriptions.map(s => s.vendor),
+      };
+    }
     const totalValue = state.opportunities.reduce((s, o) => s + o.potential_value, 0);
     const gmailConnected = !!state.gmail_tokens.refresh_token;
     return object({
